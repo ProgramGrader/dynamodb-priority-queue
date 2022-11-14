@@ -40,6 +40,7 @@ import com.amazonaws.services.s3.AmazonS3ClientBuilder;
 import com.amazonaws.services.sns.AmazonSNS;
 import com.amazonaws.services.sns.AmazonSNSClientBuilder;
 import com.awsblog.queueing.Constants;
+import com.awsblog.queueing.appdata.Assignment;
 import com.awsblog.queueing.appdata.Shipment;
 import com.awsblog.queueing.appdata.ShipmentData;
 import com.awsblog.queueing.appdata.ShipmentItem;
@@ -93,6 +94,7 @@ public class QueueSdkClient {
 		String accessKey = System.getenv("AWS_ACCESS_KEY_ID");
 		String secretKey = System.getenv("AWS_SECRET_ACCESS_KEY");
 
+		// If the aws credentials aren't given via cli then checks Environment variables
 		if (Utils.checkIfNotNullAndNotEmptyString(accessKey) && Utils.checkIfNotNullAndNotEmptyString(secretKey)) {
 
 			if (Utils.checkIfNullOrEmptyString(accessKey))
@@ -117,11 +119,13 @@ public class QueueSdkClient {
 		
 		// get the configuration information
 		this.config = Configuration.loadConfiguration();
-		
-		this.actualTableName = this.config.getTablesMap().get(this.logicalTableName).getTableName();
-		Utils.throwIfNullOrEmptyString(this.actualTableName, "Actual DynamoDB table name is not found!");
-		
-		this.key = this.config.getTablesMap().get(this.logicalTableName).getPartitionKey();
+
+		// searches this map for tableName
+//		this.actualTableName = this.config.getTablesMap().get(this.logicalTableName).getTableName();
+//		Utils.throwIfNullOrEmptyString(this.actualTableName, "Actual DynamoDB table name is not found!");
+		this.actualTableName = logicalTableName;
+		// get the name and type of partition key, in our case its id which is type String
+	//	this.key = this.config.getTablesMap().get(this.logicalTableName).getPartitionKey();
 		
 		AmazonS3ClientBuilder s3builder = AmazonS3ClientBuilder.standard();
 		if (!Utils.checkIfNullObject(this.credentials)) s3builder.withCredentials(new AWSStaticCredentialsProvider(this.credentials));
@@ -292,7 +296,12 @@ public class QueueSdkClient {
 	public void put(Shipment shipment) {
 		
 		this.putImpl(shipment, false);
-	}	
+	}
+
+	public void put(Assignment assignment) {
+
+		this.putImpl(assignment, false);
+	}
 	
 	/**
 	 * Put & Merge object in the DynamoDB
@@ -341,6 +350,41 @@ public class QueueSdkClient {
 
 		// store it in DynamoDB
 		this.dbMapper.save(shipment);
+	}
+
+	private void putImpl(Assignment assignment, boolean useUpsert) {
+
+		Utils.throwIfNullObject(assignment, "assignment object cannot be NULL!");
+
+		int version = 0;
+
+		// check if already present
+		Assignment retrievedAssignment = this.dbMapper.load(Assignment.class, assignment.getId());
+		if (!Utils.checkIfNullObject(retrievedAssignment)) {
+			if (useUpsert) {
+				version = retrievedAssignment.getSystemInfo().getVersion();
+			}
+			else {
+				this.dbMapper.delete(
+						retrievedAssignment
+				);
+			}
+		}
+
+		OffsetDateTime odt = OffsetDateTime.now(ZoneOffset.UTC);
+
+		SystemInfo system = new SystemInfo(assignment.getId());
+		system.setInQueue(false);
+		system.setSelectedFromQueue(false);
+		system.setStatus(assignment.getSystemInfo().getStatus());
+		system.setCreationTimestamp(odt.toString());
+		system.setLastUpdatedTimestamp(odt.toString());
+		system.setVersion(version + 1);
+
+		assignment.setSystemInfo(system);
+
+		// store it in DynamoDB
+		this.dbMapper.save(assignment);
 	}
 		
 	/**
@@ -1014,7 +1058,7 @@ public class QueueSdkClient {
 	/**
 	 * Delete the shipment record from DynamoDB by shipment ID
 	 * 
-	 * @param ID
+	 * @param id
 	 */
 	public void delete(String id) {
 
@@ -1186,8 +1230,8 @@ public class QueueSdkClient {
 		 */
 		public QueueSdkClient build() {
 
-			if (Utils.checkIfNullObject(this.logicalTableName)) this.logicalTableName = Constants.DEFAULT_SHIPMENT_TABLE_NAME;
-						
+//			if (Utils.checkIfNullObject(this.logicalTableName)) this.logicalTableName = Constants.DEFAULT_SHIPMENT_TABLE_NAME;
+//
 			// only if QueueSdkClient is not formed yet
 			if (Utils.checkIfNullObject(this.client)) {
 

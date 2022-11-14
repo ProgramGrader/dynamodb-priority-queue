@@ -36,7 +36,7 @@ public class TestSDK {
 		
 		QueueSdkClient client = new QueueSdkClient.Builder()
 									.withCredentialsProfileName("default")
-									.withRegion("us-east-1").build();
+									.withRegion("us-east-2").build();
 		client.put(shipment);
 		
 		QueueStats queueStats = client.getQueueStats();

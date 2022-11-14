@@ -13,7 +13,7 @@ public class Constants {
 	
 	// ------- constants
 	
-	public static final String AWS_REGION_DEFAULT = "us-east-1";
+	public static final String AWS_REGION_DEFAULT = "us-east-2";
 	public static final String AWS_PROFILE_DEFAULT= "default";
 	
 	public static final String CONFIGURATION_FILE_NAME = "configuration.json";

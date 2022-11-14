@@ -26,15 +26,22 @@ public class MultipleObjectsTest {
 	 * @param args
 	 */
 	public static void main(String[] args) {
+		// must add the LogicalTableName to the builder for this to work properly
+		// FYI: previous logic required the tableName to be defined in an external resource configuration.json file
+		// this logic has been updated so that we can just pass the table name instead
 
 		QueueSdkClient client = new QueueSdkClient.Builder()
 				.withCredentialsProfileName("default")
-				.withRegion("us-east-1")
+				.withRegion("us-east-2")
+				.withLogicalTableName("assignment_schedule")
 				.build();
 		
 		String id1 = "A-101";
 		ShipmentData data = new ShipmentData(id1);
-		data.setData1("Data 1"); data.setData2("Data 2"); data.setData3("Data 3");
+		// These are all separate data fields to add in the data column of our dynamodb table 3 String and one list all in the same column
+		data.setData1("Data 1");
+		data.setData2("Data 2");
+		data.setData3("Data 3");
 		data.setItems(Arrays.asList(new ShipmentItem("Item-1", true), new ShipmentItem("Item-2", false)));
 		
 		Shipment shipment1 = new Shipment(id1);
@@ -43,7 +50,9 @@ public class MultipleObjectsTest {
 		
 		String id2 = "A-202";
 		ShipmentData data2 = new ShipmentData(id2);
-		data2.setData1("Data 1"); data2.setData2("Data 2"); data2.setData3("Data 3");
+		data2.setData1("Data 1");
+		data2.setData2("Data 2");
+		data2.setData3("Data 3");
 		data2.setItems(Arrays.asList(new ShipmentItem("Item-1", true), new ShipmentItem("Item-2", false)));
 		Shipment shipment2 = new Shipment(id2);
 		shipment2.setData(data2);
@@ -51,7 +60,9 @@ public class MultipleObjectsTest {
 
 		String id3 = "A-303";
 		ShipmentData data3 = new ShipmentData(id3);
-		data3.setData1("Data 1"); data3.setData2("Data 2"); data3.setData3("Data 3");
+		data3.setData1("Data 1");
+		data3.setData2("Data 2");
+		data3.setData3("Data 3");
 		data3.setItems(Arrays.asList(new ShipmentItem("Item-1", true), new ShipmentItem("Item-2", false)));
 		Shipment shipment3 = new Shipment(id3);
 		shipment3.setData(data3);

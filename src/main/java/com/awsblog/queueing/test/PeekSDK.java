@@ -18,7 +18,7 @@ public class PeekSDK {
 	 */
 	public static void main(String[] args) {
 
-		QueueSdkClient client = new QueueSdkClient.Builder().withCredentialsProfileName("default").withRegion("us-east-1").build();
+		QueueSdkClient client = new QueueSdkClient.Builder().withCredentialsProfileName("default").withRegion("us-east-2").build();
 		
 		QueueStats queueStats = client.getQueueStats();
 		System.out.println(Utils.toJSON(queueStats));

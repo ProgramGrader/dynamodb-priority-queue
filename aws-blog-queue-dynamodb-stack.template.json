@@ -76,7 +76,7 @@
         "SSESpecification": {
           "SSEEnabled": true
         },
-        "TableName": "AWSBlog-shipment-demo"
+        "TableName": "assignment_schedule"
       },
       "UpdateReplacePolicy": "Retain",
       "DeletionPolicy": "Retain",

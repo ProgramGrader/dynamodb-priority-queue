@@ -14,7 +14,7 @@ import com.fasterxml.jackson.annotation.JsonInclude.Include;
 
 /**
  * Shipment object using for education purposes
- * 
+ *
  * @author zorani
  *
  */

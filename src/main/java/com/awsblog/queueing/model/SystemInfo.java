@@ -14,7 +14,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
 
 /**
- * Model all system info for the Shipment queuing
+ * Model all system info for queuing
  * 
  * @author zorani
  *
@@ -30,7 +30,7 @@ public class SystemInfo {
 		
 		OffsetDateTime odt = OffsetDateTime.now(ZoneOffset.UTC);
 		
-		// creation should be overwrote with the real value from DDB
+		// creation should be overwritten with the real value from DDB
 		this.creationTimestamp = odt.toString();
 		this.lastUpdatedTimestamp = odt.toString();
 	}

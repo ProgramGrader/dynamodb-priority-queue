@@ -29,7 +29,7 @@ public class StalledPeekTest {
 
 		QueueSdkClient client = new QueueSdkClient.Builder()
 				.withCredentialsProfileName("default")
-				.withRegion("us-east-1")
+				.withRegion("us-east-2")
 				.build();
 		
 		client.delete("A-101"); client.delete("A-202"); client.delete("A-303"); client.delete("A-404");

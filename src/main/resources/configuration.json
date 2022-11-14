@@ -5,7 +5,7 @@
     "tables": [
         {
             "logical_name": "Shipment",
-            "table_name": "AWSBlog-shipment-demo",
+            "table_name": "weagfwegfaweg",
             "read_capacity": 100,
             "write_capacity": 100,
             "partition_key": {
