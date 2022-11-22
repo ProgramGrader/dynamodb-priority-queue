@@ -1,14 +1,9 @@
 package com.awsblog.queueing.test;
 
-import java.util.Arrays;
-
-import com.awsblog.queueing.appdata.ShipmentItem;
-import com.awsblog.queueing.appdata.Shipment;
-import com.awsblog.queueing.appdata.ShipmentData;
+import com.awsblog.queueing.appdata.Assignment;
 import com.awsblog.queueing.model.EnqueueResult;
 import com.awsblog.queueing.model.PeekResult;
 import com.awsblog.queueing.model.QueueStats;
-import com.awsblog.queueing.model.StatusEnum;
 import com.awsblog.queueing.sdk.QueueSdkClient;
 import com.awsblog.queueing.utils.Utils;
 
@@ -22,46 +17,43 @@ public class TestSDK {
 
 	/**
 	 * @param args
+	 * Something is wrong with our partition key
 	 */
 	public static void main(String[] args) {
 
 		String ID = "A-101";
-		ShipmentData data = new ShipmentData(ID);
-		data.setData1("Data 1"); data.setData2("Data 2"); data.setData3("Data 3");
-		data.setItems(Arrays.asList(new ShipmentItem("Item-1", true), new ShipmentItem("Item-2", false)));
-		
-		Shipment shipment = new Shipment();
-		shipment.setId(ID);		
-		shipment.setData(data);
+		String date = "11/17/2022";
+
+		Assignment assignment = new Assignment();
+		assignment.setId(ID);
+		assignment.setSchedule(date);
 		
 		QueueSdkClient client = new QueueSdkClient.Builder()
 									.withCredentialsProfileName("default")
+									.withLogicalTableName("assignment_schedule")
 									.withRegion("us-east-2").build();
-		client.put(shipment);
+		client.put(assignment);
 		
 		QueueStats queueStats = client.getQueueStats();
 		System.out.println(Utils.toJSON(queueStats));
 
-		Shipment retrievedShipment = client.get("A-101");
-		System.out.println(Utils.toJSON(retrievedShipment));
+		Assignment retrievedAssignment = client.get("A-101");
+		System.out.println(Utils.toJSON(retrievedAssignment));
 		
 		EnqueueResult result = client.enqueue("A-101");
 		System.out.println(Utils.toJSON(result));
-		
-		if (!result.isSuccessful()) {
-			
-			client.updateStatus("A-101", StatusEnum.READY_TO_SHIP);
-			client.enqueue("A-101");
-		}
-		
-		Shipment enqueuedShipment = result.getShipment();
-		System.out.println(Utils.toJSON(enqueuedShipment));
+		//System.out.println(result.getReturnValue());
+		//System.out.println(Utils.toJSON(client.getQueueStats()));
+
+	 Assignment enqueuedAssignment = result.getAssignment();
+		System.out.println(Utils.toJSON(enqueuedAssignment));
 
 		queueStats = client.getQueueStats();
 		System.out.println(Utils.toJSON(queueStats));
 		
 		PeekResult peek = client.peek();
-		System.out.println(Utils.toJSON(peek.getPeekedShipmentId()));
+		System.out.println(Utils.toJSON(peek.getPeekedAssignmentId()));
+		System.out.println(Utils.toJSON(peek.getPeekedAssignmentSchedule()));
 	}
 
 } // end TestSDK

@@ -6,7 +6,6 @@ import java.math.BigDecimal;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
@@ -41,9 +40,6 @@ import com.amazonaws.services.sns.AmazonSNS;
 import com.amazonaws.services.sns.AmazonSNSClientBuilder;
 import com.awsblog.queueing.Constants;
 import com.awsblog.queueing.appdata.Assignment;
-import com.awsblog.queueing.appdata.Shipment;
-import com.awsblog.queueing.appdata.ShipmentData;
-import com.awsblog.queueing.appdata.ShipmentItem;
 import com.awsblog.queueing.config.ConfigField;
 import com.awsblog.queueing.config.Configuration;
 import com.awsblog.queueing.model.DLQResult;
@@ -53,7 +49,6 @@ import com.awsblog.queueing.model.PeekResult;
 import com.awsblog.queueing.model.QueueStats;
 import com.awsblog.queueing.model.ReturnResult;
 import com.awsblog.queueing.model.ReturnStatusEnum;
-import com.awsblog.queueing.model.StatusEnum;
 import com.awsblog.queueing.model.SystemInfo;
 import com.awsblog.queueing.utils.Utils;
 
@@ -81,14 +76,13 @@ public class QueueSdkClient {
 	}
 
 	/**
-	 * Part of the fluid API chaining. Once all parameters are set with .with(...) methods, build() method needs to be called. 
-	 * No other client call can be used before build() call was executed.
-	 * 
+	 * Part of the fluid API chaining. Once all parameters are set with .with(...) methods, build() method needs to be called.
+	 * No other client call can be used before build() call is executed.
+	 *
 	 * @return QueueSdkClient
 	 */
 	private QueueSdkClient initialize() {
-		
-		// for this AWS Blog Post we are doing string comparison using English locale
+
 		Locale.setDefault(Locale.ENGLISH);
 
 		String accessKey = System.getenv("AWS_ACCESS_KEY_ID");
@@ -124,9 +118,7 @@ public class QueueSdkClient {
 //		this.actualTableName = this.config.getTablesMap().get(this.logicalTableName).getTableName();
 //		Utils.throwIfNullOrEmptyString(this.actualTableName, "Actual DynamoDB table name is not found!");
 		this.actualTableName = logicalTableName;
-		// get the name and type of partition key, in our case its id which is type String
-	//	this.key = this.config.getTablesMap().get(this.logicalTableName).getPartitionKey();
-		
+
 		AmazonS3ClientBuilder s3builder = AmazonS3ClientBuilder.standard();
 		if (!Utils.checkIfNullObject(this.credentials)) s3builder.withCredentials(new AWSStaticCredentialsProvider(this.credentials));
 		if (!Utils.checkIfNullObject(this.awsRegion)) s3builder.withRegion(this.awsRegion);
@@ -145,15 +137,15 @@ public class QueueSdkClient {
 		        .withPaginationLoadingStrategy(DynamoDBMapperConfig.PaginationLoadingStrategy.EAGER_LOADING)
 		    .build();
 
-		this.dbMapper = new DynamoDBMapper(this.dynamoDB, mapperConfig);		
-		
+		this.dbMapper = new DynamoDBMapper(this.dynamoDB, mapperConfig);
+
 		return this;
 	}
 	
 	/**
 	 * Get the queue depth statistics
-	 *
-	 * @return
+	 * A good queue stats would be to show the amount of items that have been dequeued? No
+	 * Currently we have processed, items in queue
 	 */
 	public QueueStats getQueueStats() {
 
@@ -171,6 +163,9 @@ public class QueueSdkClient {
 		List<String> allQueueIDs = new ArrayList<>();
 		List<String> processingIDs = new ArrayList<>();
 
+
+		// Gets items: id and system_info; using the scheduled_index
+		// that meet the condition of queued == 1 and then organizes them descending order
 		do {
 
 			QueryRequest queryRequest = new QueryRequest()
@@ -183,35 +178,21 @@ public class QueueSdkClient {
 					.withLimit(250)
 					.withExpressionAttributeValues(values);
 
+			// exclusive start key is just a structure containing the keys needed to resume the query and grab the next n items
 			queryRequest.withExclusiveStartKey(exclusiveStartKey);
 
 			QueryResult queryResult = this.dynamoDB.query(queryRequest);
 			exclusiveStartKey = queryResult.getLastEvaluatedKey();
 
 			for(Map<String,AttributeValue> itemMap : queryResult.getItems()) {
-
 		    	++totalQueueSize;
-
-		    	Map<String,AttributeValue> sysMap = itemMap.get("system_info").getM();
-
-		    	boolean isQueueSelected = false;
-		    	if (sysMap.containsKey("queue_selected")) isQueueSelected = sysMap.get("queue_selected").getBOOL();
-
-		    	if (isQueueSelected) {
-
-		    		++peekedRecords;
-		    		if (processingIDs.size() < 100) processingIDs.add(itemMap.get("id").getS());
-		    	}
-
-			    if (allQueueIDs.size() < 100) allQueueIDs.add(itemMap.get("id").getS());
 			}
 
 		} while (exclusiveStartKey != null);
 
 		QueueStats result = new QueueStats();
-		result.setTotalRecordsInProcessing(peekedRecords);
+		//result.setTotalRecordsInProcessing(peekedRecords);
 		result.setTotalRecordsInQueue(totalQueueSize);
-		result.setTotalRecordsNotStarted(totalQueueSize - peekedRecords);
 		if (Utils.checkIfNotNullAndNotEmptyCollection(allQueueIDs)) result.setFirst100IDsInQueue(allQueueIDs);
 		if (Utils.checkIfNotNullAndNotEmptyCollection(processingIDs)) result.setFirst100SelectedIDsInQueue(processingIDs);
 
@@ -220,8 +201,7 @@ public class QueueSdkClient {
 	
 	/**
 	 * Retrieve DLQ information
-	 * 
-	 * @return
+	 *
 	 */
 	public DLQResult getDLQStats() {
 
@@ -272,31 +252,26 @@ public class QueueSdkClient {
 	}	
 	
 	/**
-	 * Get the Shipment object/record from DynamoDB
+	 * Get the Assignment object/record from DynamoDB
 	 *
 	 * @param id
 	 * @return
 	 */
-	public Shipment get(String id) {
+	public Assignment get(String id) {
 
 		if (Utils.checkIfNullOrEmptyString(id)) {
 
-			System.out.printf("ID is not provided ... cannot retrieve the shipment record!%n");
+			System.out.printf("ID is not provided ... cannot retrieve the assignment record!%n");
 			return null;
 		}
 
-		return this.dbMapper.load(Shipment.class, id.trim());
+		return this.dbMapper.load(Assignment.class, id.trim());
 	}
-	
+
+
 	/**
 	 * Put the new object into DynamoDB - replaces values, if there is already data with the same primary key
-	 *
-	 * @param shipment
-	 */
-	public void put(Shipment shipment) {
-		
-		this.putImpl(shipment, false);
-	}
+*/
 
 	public void put(Assignment assignment) {
 
@@ -306,50 +281,11 @@ public class QueueSdkClient {
 	/**
 	 * Put & Merge object in the DynamoDB
 	 *
-	 * @param shipment
+	 * @param assignment
 	 */
-	public void upsert(Shipment shipment) {
-		
-		this.putImpl(shipment, true);
-	}	
+	public void upsert(Assignment assignment) {
 
-	/**
-	 * Put/Replace the new object into DynamoDB
-	 *
-	 * @param shipment
-	 */
-	private void putImpl(Shipment shipment, boolean useUpsert) {
-
-		Utils.throwIfNullObject(shipment, "Shipment object cannot be NULL!");
-
-		int version = 0;
-
-		// check if already present
-		Shipment retrievedShipment = this.dbMapper.load(Shipment.class, shipment.getId());
-		if (!Utils.checkIfNullObject(retrievedShipment)) {
-			
-			if (useUpsert) {
-				version = retrievedShipment.getSystemInfo().getVersion();
-			}
-			else {
-				this.dbMapper.delete(retrievedShipment);
-			}
-		}
-
-		OffsetDateTime odt = OffsetDateTime.now(ZoneOffset.UTC);
-
-		SystemInfo system = new SystemInfo(shipment.getId());
-		system.setInQueue(false);
-		system.setSelectedFromQueue(false);
-		system.setStatus(shipment.getSystemInfo().getStatus());
-		system.setCreationTimestamp(odt.toString());
-		system.setLastUpdatedTimestamp(odt.toString());
-		system.setVersion(version + 1);
-
-		shipment.setSystemInfo(system);
-
-		// store it in DynamoDB
-		this.dbMapper.save(shipment);
+		this.putImpl(assignment, true);
 	}
 
 	private void putImpl(Assignment assignment, boolean useUpsert) {
@@ -374,9 +310,9 @@ public class QueueSdkClient {
 		OffsetDateTime odt = OffsetDateTime.now(ZoneOffset.UTC);
 
 		SystemInfo system = new SystemInfo(assignment.getId());
-		system.setInQueue(false);
-		system.setSelectedFromQueue(false);
-		system.setStatus(assignment.getSystemInfo().getStatus());
+		system.setInQueue(false); // we want all items placed in dynamodb to also be placed into queue
+		// system.setSelectedFromQueue(false);
+		//system.setStatus(assignment.getSystemInfo().getStatus());
 		system.setCreationTimestamp(odt.toString());
 		system.setLastUpdatedTimestamp(odt.toString());
 		system.setVersion(version + 1);
@@ -390,91 +326,90 @@ public class QueueSdkClient {
 	/**
 	 * Method for changing the status of the record 
 	 * This call should not be used unless there are operational issues and there are live issues that needs to be resolved. 
-	 * 
-	 * @param id
-	 * @param newStatus
+	 *
 	 */
-	public ReturnResult updateStatus(String id, StatusEnum newStatus) {
-	
-		ReturnResult result = new ReturnResult(id);
-		
-		if (Utils.checkIfNullOrEmptyString(id)) {
-
-			System.out.printf("ERROR: ID is not provided ... cannot retrieve the record!%n");
-			result.setReturnValue(ReturnStatusEnum.FAILED_ID_NOT_FOUND);
-			return result;
-		}
-
-		Map<String,AttributeValue> key = new HashMap<>();
-		key.put("id", new AttributeValue().withS(id));
-
-		DynamoDB ddb = new DynamoDB(this.dynamoDB);
-		Table table = ddb.getTable(this.actualTableName);
-
-		Shipment shipment = this.get(id);
-
-		if (Utils.checkIfNullObject(shipment)) {
-
-			System.out.printf("ERROR: Customer with ID [%s] cannot be found!%n", id);
-			result.setReturnValue(ReturnStatusEnum.FAILED_ID_NOT_FOUND);
-			return result;
-		}
-
-		StatusEnum prevStatus = shipment.getSystemInfo().getStatus();
-		int version = shipment.getSystemInfo().getVersion();
-
-		result.setStatus(newStatus);
-
-		if (prevStatus == newStatus) {
-            result.setVersion(version);
-            result.setLastUpdatedTimestamp(shipment.getLastUpdatedTimestamp());
-			result.setReturnValue(ReturnStatusEnum.SUCCESS);
-			return result;
-		}
-		
-		OffsetDateTime odt = OffsetDateTime.now(ZoneOffset.UTC);
-
-        try {
-
-            UpdateItemSpec updateItemSpec = new UpdateItemSpec().withPrimaryKey("id", id)
-                .withUpdateExpression("ADD #sys.#v :inc SET #sys.#st = :st, #sys.last_updated_timestamp = :lut, last_updated_timestamp = :lut")
-                .withNameMap(new NameMap()
-                		.with("#v", "version")
-                		.with("#st", "status")
-                		.with("#sys", "system_info"))
-                .withValueMap(
-                    new ValueMap()
-                    	.withInt(":inc", 1)
-                    	.withInt(":v", version)
-                    	.withString(":lut", odt.toString())
-                    	.withString(":st", newStatus.toString()))
-                .withConditionExpression("#sys.#v = :v")
-                .withReturnValues(ReturnValue.ALL_NEW);
-
-            UpdateItemOutcome outcome = table.updateItem(updateItemSpec);
-
-            Map<String, Object> sysMap = outcome.getItem().getRawMap("system_info");
-            result.setStatus(StatusEnum.valueOf((String)sysMap.get("status")));
-            result.setVersion(((BigDecimal)sysMap.get("version")).intValue());
-            result.setLastUpdatedTimestamp((String)sysMap.get("last_updated_timestamp"));
-        }
-        catch (Exception e) {
-            System.err.println("updateFullyConstructedFlag() - failed to update multiple attributes in " + this.actualTableName);
-            System.err.println(e.getMessage());
-
-            result.setReturnValue(ReturnStatusEnum.FAILED_DYNAMO_ERROR);
-    		return result;
-        }
-
-        result.setReturnValue(ReturnStatusEnum.SUCCESS);
-		return result;
-	}	
-	
+//	public ReturnResult updateStatus(String id, StatusEnum newStatus) {
+//
+//		ReturnResult result = new ReturnResult(id);
+//
+//		if (Utils.checkIfNullOrEmptyString(id)) {
+//
+//			System.out.printf("ERROR: ID is not provided ... cannot retrieve the record!%n");
+//			result.setReturnValue(ReturnStatusEnum.FAILED_ID_NOT_FOUND);
+//			return result;
+//		}
+//
+//		Map<String,AttributeValue> key = new HashMap<>();
+//		key.put("id", new AttributeValue().withS(id));
+//
+//		DynamoDB ddb = new DynamoDB(this.dynamoDB);
+//		Table table = ddb.getTable(this.actualTableName);
+//
+//		Assignment assignment = this.get(id);
+//
+//		if (Utils.checkIfNullObject(assignment)) {
+//
+//			System.out.printf("ERROR: Customer with ID [%s] cannot be found!%n", id);
+//			result.setReturnValue(ReturnStatusEnum.FAILED_ID_NOT_FOUND);
+//			return result;
+//		}
+//
+//		//StatusEnum prevStatus = shipment.getSystemInfo().getStatus();
+//		int version = assignment.getSystemInfo().getVersion();
+//
+//		//result.setStatus(newStatus);
+//
+////		if (prevStatus == newStatus) {
+////            result.setVersion(version);
+////            result.setLastUpdatedTimestamp(shipment.getLastUpdatedTimestamp());
+////			result.setReturnValue(ReturnStatusEnum.SUCCESS);
+////			return result;
+////		}
+//
+//		OffsetDateTime odt = OffsetDateTime.now(ZoneOffset.UTC);
+//
+//        try {
+//
+//            UpdateItemSpec updateItemSpec = new UpdateItemSpec().withPrimaryKey("id", id)
+//                .withUpdateExpression("ADD #sys.#v :inc" +
+//						//" SET #sys.#st = :st," +
+//						" #sys.last_updated_timestamp = :lut, last_updated_timestamp = :lut")
+//                .withNameMap(new NameMap()
+//                		.with("#v", "version")
+//                		//.with("#st", "status")
+//                		.with("#sys", "system_info"))
+//                .withValueMap(
+//                    new ValueMap()
+//                    	.withInt(":inc", 1)
+//                    	.withInt(":v", version)
+//                    	.withString(":lut", odt.toString()))
+//                    	//.withString(":st", newStatus.toString()))
+//                .withConditionExpression("#sys.#v = :v")
+//                .withReturnValues(ReturnValue.ALL_NEW);
+//
+//            UpdateItemOutcome outcome = table.updateItem(updateItemSpec);
+//
+//            Map<String, Object> sysMap = outcome.getItem().getRawMap("system_info");
+//            //result.setStatus(StatusEnum.valueOf((String)sysMap.get("status")));
+//            result.setVersion(((BigDecimal)sysMap.get("version")).intValue());
+//            result.setLastUpdatedTimestamp((String)sysMap.get("last_updated_timestamp"));
+//        }
+//        catch (Exception e) {
+//            System.err.println("updateFullyConstructedFlag() - failed to update multiple attributes in " + this.actualTableName);
+//            System.err.println(e.getMessage());
+//
+//            result.setReturnValue(ReturnStatusEnum.FAILED_DYNAMO_ERROR);
+//    		return result;
+//        }
+//
+//        result.setReturnValue(ReturnStatusEnum.SUCCESS);
+//		return result;
+//	}
+//
 	/**
 	 * enqueue() the record into the queue
-	 *
-	 * @param id
-	 * @return
+	 * Only provides an illusion of movement, we are using a sparse index to define the priority queues values
+	 * this is controlled by the queued attribute which is = 1 whenever an item is in queue
 	 */
 	public EnqueueResult enqueue(String id) {
 
@@ -487,56 +422,43 @@ public class QueueSdkClient {
 			return result;
 		}
 
-		Map<String,AttributeValue> key = new HashMap<>();
-		key.put("id", new AttributeValue().withS(id));
+//
 
-		Shipment retrievedShipment = this.get(id);
+		Assignment retrievedAssignment = this.get(id);
 
-		if (Utils.checkIfNullObject(retrievedShipment)) {
+		if (Utils.checkIfNullObject(retrievedAssignment)) {
 
-			System.out.printf("Shipment with ID [%s] cannot be found!%n", id);
+			System.out.printf("Assignment with ID [%s] cannot be found!%n", id);
 			result.setReturnValue(ReturnStatusEnum.FAILED_ID_NOT_FOUND);
 			return result;
 		}
 
-		int version = retrievedShipment.getSystemInfo().getVersion();
-		StatusEnum status = retrievedShipment.getSystemInfo().getStatus();
+		int version = retrievedAssignment.getSystemInfo().getVersion();
 
 		DynamoDB ddb = new DynamoDB(this.dynamoDB);
 		Table table = ddb.getTable(this.actualTableName);
-		
-		result.setStatus(status);
-		result.setVersion(version);
-		result.setLastUpdatedTimestamp(retrievedShipment.getSystemInfo().getLastUpdatedTimestamp());
-		
-		if (status == StatusEnum.UNDER_CONSTRUCTION) {
-			result.setReturnValue(ReturnStatusEnum.FAILED_RECORD_NOT_CONSTRUCTED);
-			return result;
-		}
 
-		if (status != StatusEnum.READY_TO_SHIP) {
-			result.setReturnValue(ReturnStatusEnum.FAILED_ILLEGAL_STATE);
-			return result;
-		}
+		result.setVersion(version);
+		result.setLastUpdatedTimestamp(retrievedAssignment.getSystemInfo().getLastUpdatedTimestamp());
 
 		OffsetDateTime odt = OffsetDateTime.now(ZoneOffset.UTC);
 
         try {
             UpdateItemSpec updateItemSpec = new UpdateItemSpec().withPrimaryKey("id", id)
-                .withUpdateExpression("ADD #sys.#v :one "
-                		+ "SET queued = :one, #sys.queued = :one, #sys.queue_selected = :false, "
+                .withUpdateExpression(
+						"ADD #sys.#v :one "
+                		+ "SET queued = :one, #sys.queued = :one,"  //#sys.queue_selected = :false, "
                 		+ "last_updated_timestamp = :lut, #sys.last_updated_timestamp = :lut, "
-                		+ "#sys.queue_added_timestamp = :lut, #sys.#st = :st")
+                		+ "#sys.queue_added_timestamp = :lut") //#sys.#st = :st")
                 .withNameMap(new NameMap()
                 		.with("#v", "version")
-                		.with("#st", "status")
+                		//.with("#st", "status")
                 		.with("#sys", "system_info"))
                 .withValueMap(
                         new ValueMap()
                         	.withInt(":one", 1)
-                        	.withBoolean(":false", false)
+                        	//.withBoolean(":false", false)
                         	.withInt(":v", version)
-                        	.withString(":st", StatusEnum.READY_TO_SHIP.toString())
                         	.withString(":lut", odt.toString()))
                 .withConditionExpression("#sys.#v = :v")
                 .withReturnValues(ReturnValue.ALL_NEW);
@@ -546,10 +468,10 @@ public class QueueSdkClient {
             Map<String, Object> sysMap = outcome.getItem().getRawMap("system_info");
             result.setVersion(((BigDecimal)sysMap.get("version")).intValue());
             result.setLastUpdatedTimestamp((String)sysMap.get("last_updated_timestamp"));
-            result.setStatus(StatusEnum.valueOf((String)sysMap.get("status")));
+            // result.setStatus(StatusEnum.valueOf((String)sysMap.get("status")));
             
-            Shipment shipment = this.get(id);
-            result.setShipment(shipment);
+            Assignment assignment = this.get(id);
+            result.setAssignment(assignment);
         }
         catch (Exception e) {
             System.err.println("enqueue() - failed to update multiple attributes in " + this.actualTableName);
@@ -565,6 +487,9 @@ public class QueueSdkClient {
 	
 	/**
 	 * Peek the record from the queue
+	 * Peek's update query request is failing and preventing dequeue to work properly
+	 * Once this is fixed, we can create another method called pop that removes the value with
+	 * the highest priority from queue and from dynamodb
 	 *
 	 * @return
 	 */
@@ -584,11 +509,13 @@ public class QueueSdkClient {
 
 		do {
 
+			// this query grabs everything in sparse index, in other words all values with queued = 1
 			QueryRequest queryRequest = new QueryRequest()
-					.withProjectionExpression("id, queued, system_info")
+					.withProjectionExpression("id, scheduled, system_info")
 					.withIndexName(Constants.QUEUEING_INDEX_NAME)
 					.withTableName(this.actualTableName)
-					.withKeyConditionExpression("queued = :one")
+					.withKeyConditionExpression("queued = :one") //  manages what will be in the queue
+					// This is unnecessary in our implementation because we don't need to denote a status on our items
 					//.withFilterExpression("attribute_not_exists(queue_selected)")   // we need to look for the stragglers
 					.withLimit(250)
 					.withScanIndexForward(true)
@@ -603,34 +530,10 @@ public class QueueSdkClient {
 
 		        Map<String, AttributeValue> sysMap = itemMap.get("system_info").getM();
 
-		        boolean isQueueSelected = false;
-		    	if (sysMap.containsKey("queue_selected")) isQueueSelected = sysMap.get("queue_selected").getBOOL();
-		    	
-		        // check if there are no stragglers (marked to be in processing but actually orphan)
-		        if (sysMap.containsKey("peek_utc_timestamp") && isQueueSelected) {
-		        	
-			        long currentTS = System.currentTimeMillis();
-			        long lastPeekTimeUTC = Long.parseLong(sysMap.get("peek_utc_timestamp").getN());
-
-			        // if more than VISIBILITY_TIMEOUT_IN_MINUTES
-			        if (currentTS - lastPeekTimeUTC > (Constants.VISIBILITY_TIMEOUT_IN_MINUTES * 60 * 1000)) {
-
-		        		selectedID = itemMap.get("id").getS();
-				        selectedVersion = Integer.parseInt(sysMap.get("version").getN());
-				        recordForPeekIsFound = true;
-				        
-						System.out.printf(" >> Converted struggler, Shipment ID: [%s], age: %d%n", itemMap.get("id").getS(), currentTS - lastPeekTimeUTC);
-			        }
-		        }
-			        
-				// otherwise, peek first record that satisfy basic condition (queued = :one)
-				else {
-
 	        		selectedID = itemMap.get("id").getS();
 			        selectedVersion = Integer.parseInt(sysMap.get("version").getN());
 			        recordForPeekIsFound = true;
-		        }
-			        
+
 				// no need to go further
 				if (recordForPeekIsFound) break;
 			}
@@ -646,8 +549,8 @@ public class QueueSdkClient {
 		// assign ID to 'result'
 		result.setId(selectedID);
 		
-		// this is a simplest way to construct an App object
-		Shipment shipment = this.get(selectedID);
+		// this is an simplest way to construct an App object
+		Assignment assignment = this.get(selectedID);
 
 		OffsetDateTime odt = OffsetDateTime.now(ZoneOffset.UTC);
 
@@ -657,35 +560,35 @@ public class QueueSdkClient {
 		long tsUTC = System.currentTimeMillis();
 
 		UpdateItemOutcome outcome = null;
-		
+
+		// This functionality is used to prevent us from interacting with same variable multiple times; However,
+		// we won't necessarily need this functionality, because all we want to do is get top value and see it schedule
+
         try {
 
         	// IMPORTANT
         	// please note, we are not updating top-level attribute `last_updated_timestamp` in order to avoid re-indexing the order
-        	
-            UpdateItemSpec updateItemSpec = new UpdateItemSpec()
-            	.withPrimaryKey("id", shipment.getId())
-                .withUpdateExpression("ADD #sys.#v :one "
-                		+ "SET #sys.queue_selected = :true, "
-                		+ "#sys.last_updated_timestamp = :lut, "
-                		+ "#sys.queue_peek_timestamp = :lut, "
-                		+ "#sys.peek_utc_timestamp = :ts, #sys.#st = :st")
-                .withNameMap(new NameMap()
-                		.with("#v", "version")
-                		.with("#st", "status")
-                		.with("#sys", "system_info"))
-                .withValueMap(
-                        new ValueMap()
-                        	.withInt(":one", 1)
-                        	.withInt(":v", selectedVersion)
-                        	.withBoolean(":true", true)
-                        	.withLong(":ts", tsUTC)
-                        	.withString(":st", StatusEnum.PROCESSING_SHIPMENT.toString())
-                        	.withString(":lut", odt.toString()))
-                .withConditionExpression("#sys.#v = :v")
-                .withReturnValues(ReturnValue.ALL_NEW);
+			UpdateItemSpec updateItemSpec = new UpdateItemSpec().withPrimaryKey("id", assignment.getId())
+					.withUpdateExpression(
+							"ADD #sys.#v :one "
+									+ "SET queued = :one, #sys.queued = :one,"
+									+ " #sys.last_updated_timestamp = :lut, #sys.queue_peek_timestamp = :lut, "
+									+ "#sys.peek_utc_timestamp = :ts")
+					.withNameMap(new NameMap()
+							.with("#v", "version")
+							//.with("#st", "status")
+							.with("#sys", "system_info"))
+					.withValueMap(
+							new ValueMap()
+									.withInt(":one", 1)
+									.withInt(":v", selectedVersion)
+									.withLong(":ts", tsUTC)
+									.withString(":lut", odt.toString()))
+					.withConditionExpression("#sys.#v = :v")
+					.withReturnValues(ReturnValue.ALL_NEW);
 
-            outcome = table.updateItem(updateItemSpec);     
+
+			outcome = table.updateItem(updateItemSpec);
         }
         catch (Exception e) {
             System.err.println("peek() - failed to update multiple attributes in " + this.actualTableName);
@@ -694,18 +597,19 @@ public class QueueSdkClient {
             result.setReturnValue(ReturnStatusEnum.FAILED_DYNAMO_ERROR);
     		return result;
         }
-            
-        result.setId(outcome.getItem().getString("id"));
+
+       // result.setId(outcome.getItem().getString("id"));
 
         // adding this to get the fresh data from DDB
-        Shipment peekedShipment = this.get(selectedID);
-        result.setPeekedShipmentObject(peekedShipment);
+        Assignment peekedAssignment = this.get(selectedID);
+        result.setPeekedAssignmentObject(peekedAssignment);
 
-        Map<String, Object> sysMap = outcome.getItem().getRawMap("system_info");
-        result.setVersion(((BigDecimal)sysMap.get("version")).intValue());
-        result.setLastUpdatedTimestamp((String)sysMap.get("last_updated_timestamp"));
-        result.setStatus(StatusEnum.valueOf((String)sysMap.get("status")));            
-        result.setTimestampMillisUTC(((BigDecimal)sysMap.get("peek_utc_timestamp")).intValue());
+		//Map<String, Object> sysMap = outcome.getItem().getRawMap("system_info");
+      //  result.setVersion(((BigDecimal)sysMap.get("version")).intValue());
+       // result.setLastUpdatedTimestamp((String)sysMap.get("last_updated_timestamp"));
+
+       // result.setStatus(StatusEnum.valueOf((String)sysMap.get("status")));
+        //result.setTimestampMillisUTC(((BigDecimal)sysMap.get("peek_utc_timestamp")).intValue());
 
         result.setReturnValue(ReturnStatusEnum.SUCCESS);
 		return result;
@@ -732,7 +636,7 @@ public class QueueSdkClient {
 
 			if (removeResult.isSuccessful()) {
 				
-				dequeueResult.setDequeuedShipmentObject(peekResult.getPeekedShipmentObject());
+				dequeueResult.setDequeuedAssignmentObject(peekResult.getPeekedAssignmentObject());
 			}
 		}
 		else {
@@ -747,6 +651,7 @@ public class QueueSdkClient {
 	 * Acknowledge that the account is processed and that can be removed from the queue
 	 * queued = 0 (and REMOVE), queue_selected = false
 	 *
+	 * this needs to delete the item from table not remove it from queue
 	 * @param id
 	 * @return
 	 */
@@ -754,8 +659,8 @@ public class QueueSdkClient {
 
 		ReturnResult result = new ReturnResult(id);
 
-		Shipment shipment = this.get(id);
-		if (Utils.checkIfNullObject(shipment)) {
+		Assignment assignment = this.get(id);
+		if (Utils.checkIfNullObject(assignment)) {
 
 	        result.setReturnValue(ReturnStatusEnum.FAILED_ID_NOT_FOUND);
 			return result;
@@ -774,7 +679,7 @@ public class QueueSdkClient {
             	.withPrimaryKey("id", id)
                 .withUpdateExpression("ADD #sys.#v :one "
                 		+ "REMOVE #sys.peek_utc_timestamp, queued, #DLQ "
-                		+ "SET #sys.queued = :zero, #sys.queue_selected = :false, "
+                		+ "SET #sys.queued = :zero ,"//#sys.queue_selected = :false, "
                 		+ "#sys.last_updated_timestamp = :lut, "
                 		+ "last_updated_timestamp = :lut, "
                 		+ "#sys.queue_remove_timestamp = :lut")
@@ -785,14 +690,14 @@ public class QueueSdkClient {
                         new ValueMap()
                         	.withInt(":one", 1)
                         	.withInt(":zero", 0)
-                        	.withBoolean(":false", false)
-                        	.withInt(":v", shipment.getSystemInfo().getVersion())
+                        	//.withBoolean(":false", false)
+                        	.withInt(":v", assignment.getSystemInfo().getVersion())
                         	.withString(":lut", odt.toString()))
-                .withConditionExpression("#sys.#v = :v") 
+                .withConditionExpression("#sys.#v = :v")
                 .withReturnValues(ReturnValue.ALL_NEW);
 
             outcome = table.updateItem(updateItemSpec);
-            
+
         } catch (Exception e) {
             System.err.println("remove() - failed to update multiple attributes in " + this.actualTableName);
             System.err.println(e.getMessage());
@@ -801,10 +706,10 @@ public class QueueSdkClient {
     		return result;
         }
             
-        Map<String, Object> sysMap = outcome.getItem().getRawMap("system_info");
-        result.setVersion(((BigDecimal)sysMap.get("version")).intValue());
-        result.setStatus(StatusEnum.valueOf((String)sysMap.get("status")));
-        result.setLastUpdatedTimestamp((String)sysMap.get("last_updated_timestamp"));
+       // Map<String, Object> sysMap = outcome.getItem().getRawMap("system_info");
+       // result.setVersion(((BigDecimal)sysMap.get("version")).intValue());
+      //  result.setStatus(StatusEnum.valueOf((String)sysMap.get("status")));
+        //result.setLastUpdatedTimestamp((String)sysMap.get("last_updated_timestamp"));
 
         result.setReturnValue(ReturnStatusEnum.SUCCESS);
 		return result;
@@ -812,16 +717,15 @@ public class QueueSdkClient {
 
 	/**
 	 * Put back the record in the queue 
-	 *
-	 * @param id
-	 * @return
+	 * Only works if we don't remove item
+	 * You want to check if item exists in table, but has not been queued if it does restore it
 	 */
 	public ReturnResult restore(String id) {
 
 		ReturnResult result = new ReturnResult(id);
 
-		Shipment shipment = this.get(id);
-		if (Utils.checkIfNullObject(shipment)) {
+		Assignment assignment = this.get(id);
+		if (Utils.checkIfNullObject(assignment)) {
 
 	        result.setReturnValue(ReturnStatusEnum.FAILED_ID_NOT_FOUND);
 			return result;
@@ -841,7 +745,7 @@ public class QueueSdkClient {
                 .withUpdateExpression("ADD #sys.#v :one "
                 		+ "REMOVE #DLQ "
                 		+ "SET #sys.queued = :one, queued = :one, "
-                		+ "#sys.queue_selected = :false, "
+                	//	+ "#sys.queue_selected = :false, "
                 		+ "last_updated_timestamp = :lut, "
                 		+ "#sys.last_updated_timestamp = :lut, "
                 		+ "#sys.queue_add_timestamp = :lut, "
@@ -853,9 +757,9 @@ public class QueueSdkClient {
                 		.with("#sys", "system_info"))
                 .withValueMap(
                         new ValueMap().withInt(":one", 1)
-                        	.withInt(":v", shipment.getSystemInfo().getVersion())
+                        	.withInt(":v", assignment.getSystemInfo().getVersion())
                         	.withBoolean(":false", false)
-                        	.withString(":st", StatusEnum.READY_TO_SHIP.toString())
+                        	//.withString(":st", StatusEnum.READY_TO_SHIP.toString())
                         	.withString(":lut", odt.toString()))
                 .withConditionExpression("#sys.#v = :v")
                 .withReturnValues(ReturnValue.ALL_NEW);
@@ -870,12 +774,12 @@ public class QueueSdkClient {
     		return result;
         }
 
-        Map<String, Object> sysMap = outcome.getItem().getRawMap("system_info");
-        result.setVersion(((BigDecimal)sysMap.get("version")).intValue());
-        result.setStatus(StatusEnum.valueOf((String)sysMap.get("status")));
-        result.setLastUpdatedTimestamp((String)sysMap.get("last_updated_timestamp"));
+//        Map<String, Object> sysMap = outcome.getItem().getRawMap("system_info");
+//        result.setVersion(((BigDecimal)sysMap.get("version")).intValue());
+//        result.setStatus(StatusEnum.valueOf((String)sysMap.get("status")));
+//        result.setLastUpdatedTimestamp((String)sysMap.get("last_updated_timestamp"));
 
-        result.setReturnValue(ReturnStatusEnum.SUCCESS);
+       result.setReturnValue(ReturnStatusEnum.SUCCESS);
 		return result;
 	}
 
@@ -889,8 +793,8 @@ public class QueueSdkClient {
 
 		ReturnResult result = new ReturnResult(id);
 
-		Shipment shipment = this.get(id);
-		if (Utils.checkIfNullObject(shipment)) {
+		 Assignment assignment = this.get(id);
+		if (Utils.checkIfNullObject(assignment)) {
 
 	        result.setReturnValue(ReturnStatusEnum.FAILED_ID_NOT_FOUND);
 			return result;
@@ -910,7 +814,7 @@ public class QueueSdkClient {
                 .withUpdateExpression("ADD #sys.#v :one "
                 		+ "REMOVE queued "
                 		+ "SET #DLQ = :one, #sys.queued = :zero, "
-                		+ "#sys.queue_selected = :false, "
+                		// + "#sys.queue_selected = :false, "
                 		+ "last_updated_timestamp = :lut, "
                 		+ "#sys.last_updated_timestamp = :lut, "
                 		+ "#sys.dlq_add_timestamp = :lut, #sys.#st = :st")
@@ -921,10 +825,10 @@ public class QueueSdkClient {
                 		.with("#sys", "system_info"))
                 .withValueMap(
                         new ValueMap().withInt(":one", 1)
-                        	.withInt(":v", shipment.getSystemInfo().getVersion())
+                        	.withInt(":v", assignment.getSystemInfo().getVersion())
                         	.withInt(":zero", 0)
                         	.withBoolean(":false", false)
-                        	.withString(":st", StatusEnum.IN_DLQ.toString())
+                        	// .withString(":st", StatusEnum.IN_DLQ.toString())
                         	.withString(":lut", odt.toString()))
                 .withConditionExpression("#sys.#v = :v and #sys.queued = :one")
                 .withReturnValues(ReturnValue.ALL_NEW);
@@ -941,16 +845,17 @@ public class QueueSdkClient {
 
         Map<String, Object> sysMap = outcome.getItem().getRawMap("system_info");
         result.setVersion(((BigDecimal)sysMap.get("version")).intValue());
-        result.setStatus(StatusEnum.valueOf((String)sysMap.get("status")));
+        //result.setStatus(StatusEnum.valueOf((String)sysMap.get("status")));
         result.setLastUpdatedTimestamp((String)sysMap.get("last_updated_timestamp"));
 
-        result.setReturnValue(ReturnStatusEnum.SUCCESS);
+        //result.setReturnValue(ReturnStatusEnum.SUCCESS);
 		return result;
 	}
 
 	/**
 	 * Changes the last_updated_timestamp and increments 'version' by 1
 	 *
+	 * Not sure how to use this... if we have any coroutines maybe we should consider using this
 	 * @param id
 	 * @return
 	 */
@@ -958,8 +863,8 @@ public class QueueSdkClient {
 
 		ReturnResult result = new ReturnResult(id);
 
-		Shipment shipment = this.get(id);
-		if (Utils.checkIfNullObject(shipment)) {
+		Assignment assignment = this.get(id);
+		if (Utils.checkIfNullObject(assignment)) {
 
 	        result.setReturnValue(ReturnStatusEnum.FAILED_ID_NOT_FOUND);
 			return result;
@@ -984,7 +889,7 @@ public class QueueSdkClient {
                 		.with("#sys", "system_info"))
                 .withValueMap(
                         new ValueMap().withInt(":one", 1)
-                        	.withInt(":v", shipment.getSystemInfo().getVersion())
+                        	.withInt(":v", assignment.getSystemInfo().getVersion())
                         	.withString(":lut", odt.toString()))
                 .withConditionExpression("#sys.#v = :v")
                 .withReturnValues(ReturnValue.ALL_NEW);
@@ -1002,15 +907,15 @@ public class QueueSdkClient {
 
         Map<String, Object> sysMap = outcome.getItem().getRawMap("system_info");
         result.setVersion(((BigDecimal)sysMap.get("version")).intValue());
-        result.setStatus(StatusEnum.valueOf((String)sysMap.get("status")));
+       // result.setStatus(StatusEnum.valueOf((String)sysMap.get("status")));
         result.setLastUpdatedTimestamp((String)sysMap.get("last_updated_timestamp"));
 
-        result.setReturnValue(ReturnStatusEnum.SUCCESS);
+        //result.setReturnValue(ReturnStatusEnum.SUCCESS);
 		return result;
 	}	
 	
 	/**
-	 * Get the first 'size' items form the Shipment table
+	 * Get the first 'size' items form the Assignment table
 	 * 
 	 * @return
 	 */
@@ -1018,18 +923,16 @@ public class QueueSdkClient {
 		
 		DynamoDBScanExpression scanExpression = new DynamoDBScanExpression();
 		scanExpression.withLimit(size);
-		scanExpression.withProjectionExpression("id, system_info");
+		scanExpression.withProjectionExpression("id, scheduled, system_info");
 		
 		//List<String> listOfIDs = new ArrayList<>();
-		
-		ScanResultPage<Shipment> result = this.dbMapper.scanPage(Shipment.class, scanExpression);
-		
-		List<String> listOfIDs = result.getResults().stream()
-										.map(s -> s.getId())
+
+		ScanResultPage<Assignment> result = this.dbMapper.scanPage(Assignment.class, scanExpression);
+
+		return result.getResults().stream()
+										.map(Assignment::getId)
 										.limit(size)
 										.collect(Collectors.toList());
-		
-		return listOfIDs;
 	}
 	
 	/**
@@ -1037,61 +940,36 @@ public class QueueSdkClient {
 	 * 
 	 * @return
 	 */
-	public List<String> listExtendedIDs(int size) {
-		
-		DynamoDBScanExpression scanExpression = new DynamoDBScanExpression();
-		scanExpression.withLimit(size);
-		scanExpression.withProjectionExpression("id, system_info");
-		
-		//List<String> listOfIDs = new ArrayList<>();
-		
-		ScanResultPage<Shipment> result = this.dbMapper.scanPage(Shipment.class, scanExpression);
-		
-		List<String> listOfIDs = result.getResults().stream()
-										.map(s -> s.getId() + " - status: " + s.getSystemInfo().getStatus().toString())
-										.limit(size)
-										.collect(Collectors.toList());
-		
-		return listOfIDs;
-	}
+//	public List<String> listExtendedIDs(int size) {
+//
+//		DynamoDBScanExpression scanExpression = new DynamoDBScanExpression();
+//		scanExpression.withLimit(size);
+//		scanExpression.withProjectionExpression("id, system_info");
+//
+//		//List<String> listOfIDs = new ArrayList<>();
+//
+//		ScanResultPage<Shipment> result = this.dbMapper.scanPage(Shipment.class, scanExpression);
+//
+////		List<String> listOfIDs = result.getResults().stream()
+////										.map(s -> s.getId() + " - status: " //+ s.getSystemInfo().getStatus().toString())
+////										.limit(size)
+////										.collect(Collectors.toList());
+//
+//		return listOfIDs;
+//	}
 
 	/**
-	 * Delete the shipment record from DynamoDB by shipment ID
+	 * Delete the assignment record from DynamoDB by Assignment ID
 	 * 
 	 * @param id
 	 */
 	public void delete(String id) {
 
-		Utils.throwIfNullOrEmptyString(id, "Shipment ID cannot be NULL!");
+		Utils.throwIfNullOrEmptyString(id, "Assignment ID cannot be NULL!");
 
-		this.dbMapper.delete(new Shipment(id));
+		this.dbMapper.delete(new Assignment(id));
 	}
-	
-	/**
-	 * Create the test data 
-	 * 
-	 * @param ID
-	 * @return Shipment
-	 */
-	public Shipment createTestData(String ID) {
-		
-		Utils.throwIfNullOrEmptyString(ID, "ID is not provided!");
-		
-		this.delete(ID);
-		
-		ShipmentData data = new ShipmentData(ID);
-		data.setData1("Data 1"); data.setData2("Data 2"); data.setData3("Data 3");
-		data.setItems(Arrays.asList(new ShipmentItem("Item-1", true), new ShipmentItem("Item-2", true), new ShipmentItem("Item-3", true)));
-		
-		Shipment shipment = new Shipment(ID);
-		shipment.setData(data);
-		//shipment.markAsReadyForShipment();
-		
-		this.put(shipment);
 
-		return shipment;
-	}
-	
 	/**
 	 * @return the dynamoDB
 	 */
@@ -1230,8 +1108,7 @@ public class QueueSdkClient {
 		 */
 		public QueueSdkClient build() {
 
-//			if (Utils.checkIfNullObject(this.logicalTableName)) this.logicalTableName = Constants.DEFAULT_SHIPMENT_TABLE_NAME;
-//
+			//if (Utils.checkIfNullObject(this.logicalTableName)) this.logicalTableName = Constants.DEFAULT_SHIPMENT_TABLE_NAME;
 			// only if QueueSdkClient is not formed yet
 			if (Utils.checkIfNullObject(this.client)) {
 

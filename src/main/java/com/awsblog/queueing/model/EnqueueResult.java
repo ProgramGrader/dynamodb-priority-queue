@@ -1,6 +1,6 @@
 package com.awsblog.queueing.model;
 
-import com.awsblog.queueing.appdata.Shipment;
+import com.awsblog.queueing.appdata.Assignment;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
@@ -33,20 +33,20 @@ public class EnqueueResult extends ReturnResult {
 	/**
 	 * @return the shipment
 	 */
-	public Shipment getShipment() {
-		return shipment;
+	public Assignment getAssignment() {
+		return assignment;
 	}
 
 	/**
-	 * @param shipment the shipment to set
+	 * @param assignment the shipment to set
 	 */
-	public void setShipment(Shipment shipment) {
-		this.shipment = shipment;
+	public void setAssignment(Assignment assignment) {
+		this.assignment = assignment;
 	}
 
 	// ---------------- fields
 
 	@JsonIgnore
-	private Shipment shipment = null;
+	private Assignment assignment = null;
 	
 } // end EnqueueResult

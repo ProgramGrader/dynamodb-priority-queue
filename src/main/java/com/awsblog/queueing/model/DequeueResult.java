@@ -1,6 +1,6 @@
 package com.awsblog.queueing.model;
 
-import com.awsblog.queueing.appdata.Shipment;
+import com.awsblog.queueing.appdata.Assignment;
 import com.awsblog.queueing.utils.Utils;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonInclude;
@@ -46,7 +46,7 @@ public class DequeueResult extends ReturnResult {
 		
 		DequeueResult dequeueResult = new DequeueResult(result.getId());
 		dequeueResult.setLastUpdatedTimestamp(result.getLastUpdatedTimestamp());
-		dequeueResult.setStatus(result.getStatus());
+		//dequeueResult.setStatus(result.getStatus());
 		dequeueResult.setVersion(result.getVersion());
 		dequeueResult.setReturnValue(result.getReturnValue());
 		
@@ -54,29 +54,29 @@ public class DequeueResult extends ReturnResult {
 	}
 		
 	/**
-	 * @return the dequeuedShipmentObject
+	 * @return the dequeuedAssignmentObject
 	 */
-	public Shipment getDequeuedShipmentObject() {
-		return dequeuedShipmentObject;
+	public Assignment getDequeuedAssignmentObject() {
+		return dequeuedAssignmentObject;
 	}
 
 	/**
-	 * @param dequeuedShipmentObject the dequeuedShipmentObject to set
+	 * @param dequeuedAssignmentObject the dequeuedAssignmentObject to set
 	 */
-	public void setDequeuedShipmentObject(Shipment dequeuedShipmentObject) {
-		this.dequeuedShipmentObject = dequeuedShipmentObject;
+	public void setDequeuedAssignmentObject(Assignment dequeuedAssignmentObject) {
+		this.dequeuedAssignmentObject = dequeuedAssignmentObject;
 	}
 
 	/**
-	 * Get the peeked shipment id
+	 * Get the peeked Assignment id
 	 * 
 	 * @return
 	 */
 	@JsonProperty("dequeue_id")
-	public String getPeekedShipmentId() {
+	public String getPeekedAssignmentId() {
 		
-		if (Utils.checkIfNotNullObject(this.dequeuedShipmentObject)) 
-			return this.dequeuedShipmentObject.getId();
+		if (Utils.checkIfNotNullObject(this.dequeuedAssignmentObject))
+			return this.dequeuedAssignmentObject.getId();
 		
 		return "NOT FOUND";
 	}
@@ -84,6 +84,6 @@ public class DequeueResult extends ReturnResult {
 	// ---------------- fields
 
 	@JsonIgnore
-	private Shipment dequeuedShipmentObject = null;
+	private Assignment dequeuedAssignmentObject = null;
 	
 } // end DequeueResult

@@ -3,12 +3,16 @@ package com.awsblog.queueing.appdata;
 import com.amazonaws.services.dynamodbv2.datamodeling.DynamoDBAttribute;
 import com.amazonaws.services.dynamodbv2.datamodeling.DynamoDBHashKey;
 import com.amazonaws.services.dynamodbv2.datamodeling.DynamoDBIgnore;
-import com.awsblog.queueing.model.StatusEnum;
+import com.amazonaws.services.dynamodbv2.datamodeling.DynamoDBTable;
 import com.awsblog.queueing.model.SystemInfo;
 import com.awsblog.queueing.utils.Utils;
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
+
+@JsonInclude(JsonInclude.Include.NON_NULL)
+@DynamoDBTable(tableName="assignment_schedule")
 public class Assignment {
 
     // ---------------------- fields
@@ -38,6 +42,12 @@ public class Assignment {
      *
      * @param id, schedule
      */
+
+    public Assignment(String id) {
+        Utils.throwIfNullOrEmptyString(id, "Assignment ID cannot be null!");
+        this.id = id.trim();
+    }
+
     public Assignment(String id, String schedule) {
 
         Utils.throwIfNullOrEmptyString(id, "Assignment ID cannot be null!");
@@ -136,7 +146,7 @@ public class Assignment {
     /**
      * @return get Schedule
      */
-    @DynamoDBAttribute(attributeName = "schedule")
+    @DynamoDBAttribute(attributeName = "scheduled")
     public String getSchedule() {
         return schedule;
     }

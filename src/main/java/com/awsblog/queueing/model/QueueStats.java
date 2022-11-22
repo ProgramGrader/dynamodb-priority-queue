@@ -20,7 +20,6 @@ public class QueueStats {
 	/**
 	 * C-tor
 	 *
-	 * @param id
 	 */
 	public QueueStats() {
 		
@@ -48,32 +47,7 @@ public class QueueStats {
 	public void setTotalRecordsInQueue(int totalRecordsInQueue) {
 		this.totalRecordsInQueue = totalRecordsInQueue;
 	}
-	/**
-	 * @return the totalRecordsInProcessing
-	 */
-	public int getTotalRecordsInProcessing() {
-		return totalRecordsInProcessing;
-	}
-	/**
-	 * @param totalRecordsInProcessing the totalRecordsInProcessing to set
-	 */
-	public void setTotalRecordsInProcessing(int totalRecordsInProcessing) {
-		this.totalRecordsInProcessing = totalRecordsInProcessing;
-	}
-	/**
-	 * @return the totalRecordsNotStarted
-	 */
-	public int getTotalRecordsNotStarted() {
-		return totalRecordsNotStarted;
-	}
-	/**
-	 * @param totalRecordsNotStarted the totalRecordsNotStarted to set
-	 */
-	public void setTotalRecordsNotStarted(int totalRecordsNotStarted) {
-		this.totalRecordsNotStarted = totalRecordsNotStarted;
-	}
-	
-	/**
+/**
 	 * @return the first100IDsInQueue
 	 */
 	public List<String> getFirst100IDsInQueue() {
@@ -123,21 +97,6 @@ public class QueueStats {
 			sb.append(String.format(" }%n"));
 		}
 
-		sb.append(String.format("   >>> Records in processing: %d%n", this.getTotalRecordsInProcessing()));
-		if (!this.first100SelectedIDsInQueue.isEmpty()) {
-
-			sb.append("   >>> Selected IDs in the queue: { ");
-			int count = 0;
-			for(String id : this.first100SelectedIDsInQueue) {
-
-				if (count++ > 0) sb.append(", ");
-				sb.append(id);
-			}
-			sb.append(String.format(" }%n"));
-		}
-
-		sb.append(String.format("   >>> Records in queue but not in processing: %d%n", this.getTotalRecordsNotStarted()));
-
 		return sb.toString();
 	}
 
@@ -150,9 +109,6 @@ public class QueueStats {
 
 	@JsonProperty("total_records_in_queue")
 	private int totalRecordsInQueue = 0;
-	@JsonProperty("total_records_in_queue_selected_for_processing")
-	private int totalRecordsInProcessing = 0;
-	@JsonProperty("total_records_in_queue_pending_for_processing")
-	private int totalRecordsNotStarted = 0;
+
 
 } // end QueueStats
