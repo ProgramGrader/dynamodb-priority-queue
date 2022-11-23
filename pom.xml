@@ -142,7 +142,19 @@
 		<groupId>commons-logging</groupId>
 		<artifactId>commons-logging</artifactId>
 		<version>${apache-commons-logging.version}</version>
-	</dependency>    
-    
+	</dependency>
+      <dependency>
+          <groupId>org.junit.jupiter</groupId>
+          <artifactId>junit-jupiter</artifactId>
+          <version>RELEASE</version>
+          <scope>compile</scope>
+      </dependency>
+    <dependency>
+      <groupId>org.junit.jupiter</groupId>
+      <artifactId>junit-jupiter</artifactId>
+      <version>RELEASE</version>
+      <scope>compile</scope>
+    </dependency>
+
   </dependencies>
 </project>

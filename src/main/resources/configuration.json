@@ -14,7 +14,7 @@
             },
 			"indexes" : [ 
 			    {
-			      "index_name" : "queueud-last_updated_timestamp-index",
+			      "index_name" : "queued-last_updated_timestamp-index",
 			      "hash_key": {
 			      	"attribute_name" : "queued",
 			      	"attribute_type" : "Numeric"

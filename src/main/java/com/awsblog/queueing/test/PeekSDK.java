@@ -18,13 +18,16 @@ public class PeekSDK {
 	 */
 	public static void main(String[] args) {
 
-		QueueSdkClient client = new QueueSdkClient.Builder().withCredentialsProfileName("default").withRegion("us-east-2").build();
+		QueueSdkClient client = new QueueSdkClient.Builder().withCredentialsProfileName("default")
+									.withRegion("us-east-2")
+									.withLogicalTableName("assignment_schedule")
+									.build();
 		
 		QueueStats queueStats = client.getQueueStats();
 		System.out.println(Utils.toJSON(queueStats));
 
 		PeekResult peek = client.peek();
-		System.out.println(Utils.toJSON(peek.getPeekedShipmentId()));
+		System.out.println(Utils.toJSON(peek.getPeekedAssignmentId()));
 		
 		queueStats = client.getQueueStats();
 		System.out.println(Utils.toJSON(queueStats));		

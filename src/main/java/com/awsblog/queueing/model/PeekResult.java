@@ -1,6 +1,6 @@
 package com.awsblog.queueing.model;
 
-import com.awsblog.queueing.appdata.Shipment;
+import com.awsblog.queueing.appdata.Assignment;
 import com.awsblog.queueing.utils.Utils;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonInclude;
@@ -12,6 +12,8 @@ import com.fasterxml.jackson.annotation.JsonInclude.Include;
  * 
  * @author zorani
  *
+ *
+ * Need to update this to reflect returning schedules
  */
 @JsonInclude(Include.NON_NULL)
 public class PeekResult extends ReturnResult {
@@ -35,15 +37,15 @@ public class PeekResult extends ReturnResult {
 	/**
 	 * @return the peekedShipmentObject
 	 */
-	public Shipment getPeekedShipmentObject() {
-		return peekedShipmentObject;
+	public Assignment getPeekedAssignmentObject() {
+		return peekedAssignmentObject;
 	}
 
 	/**
-	 * @param peekedShipmentObject the peekedShipmentObject to set
+	 * @param peekedAssignmentObject the peekedShipmentObject to set
 	 */
-	public void setPeekedShipmentObject(Shipment peekedShipmentObject) {
-		this.peekedShipmentObject = peekedShipmentObject;
+	public void setPeekedAssignmentObject(Assignment peekedAssignmentObject) {
+		this.peekedAssignmentObject = peekedAssignmentObject;
 	}	
 	
 	/**
@@ -66,11 +68,19 @@ public class PeekResult extends ReturnResult {
 	 * @return
 	 */
 	@JsonProperty("peeked_id")
-	public String getPeekedShipmentId() {
+	public String getPeekedAssignmentId() {
 		
-		if (Utils.checkIfNotNullObject(this.peekedShipmentObject)) 
-			return this.peekedShipmentObject.getId();
+		if (Utils.checkIfNotNullObject(this.peekedAssignmentObject))
+			return this.peekedAssignmentObject.getId();
 		
+		return "NOT FOUND";
+	}
+
+	@JsonProperty("peeked_schedule")
+	public String getPeekedAssignmentSchedule(){
+		if (Utils.checkIfNotNullObject(this.peekedAssignmentObject))
+			return this.getPeekedAssignmentObject().getSchedule();
+
 		return "NOT FOUND";
 	}
 
@@ -80,6 +90,6 @@ public class PeekResult extends ReturnResult {
 	private long timestampMillisUTC = 0L;
 	
 	@JsonIgnore
-	private Shipment peekedShipmentObject = null;
+	private Assignment peekedAssignmentObject = null;
 	
 } // end PeekResult

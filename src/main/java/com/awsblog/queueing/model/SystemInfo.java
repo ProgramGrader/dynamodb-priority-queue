@@ -46,7 +46,7 @@ public class SystemInfo {
 
 		OffsetDateTime odt = OffsetDateTime.now(ZoneOffset.UTC);
 
-		// creation should be overwrote with the real value from DDB
+		// creation should be overwritten with the real value from DDB
 		this.creationTimestamp = odt.toString();
 		this.lastUpdatedTimestamp = odt.toString();
 	}
@@ -104,21 +104,21 @@ public class SystemInfo {
 	
 	/**
 	 * @return the selectedFromQueue
-	 */
-	@DynamoDBAttribute(attributeName = "queue_selected")
-	@DynamoDBTyped(DynamoDBAttributeType.BOOL)
-	public boolean isSelectedFromQueue() {
-		return selectedFromQueue;
-	}
+//	 */
+//	@DynamoDBAttribute(attributeName = "queue_selected")
+//	@DynamoDBTyped(DynamoDBAttributeType.BOOL)
+//	public boolean isSelectedFromQueue() {
+//		return selectedFromQueue;
+//	}
 
 	/**
 	 * @param selectedFromQueue the selectedFromQueue to set
 	 */
-	public void setSelectedFromQueue(boolean selectedFromQueue) {
-		this.selectedFromQueue = selectedFromQueue;
-	}
+//	public void setSelectedFromQueue(boolean selectedFromQueue) {
+//		this.selectedFromQueue = selectedFromQueue;
+//	}
 
-	
+
 	/**
 	 * @return the addToQueueTimestamp
 	 */
@@ -172,27 +172,27 @@ public class SystemInfo {
 	}
 
 	/**
-	 * @return the status
-	 */
-	@DynamoDBAttribute(attributeName = "status")
-	@DynamoDBTyped(DynamoDBAttributeType.S)
-	public StatusEnum getStatus() {
-		return status;
-	}
-
-	/**
-	 * @param status the status to set
-	 */
-	public void setStatus(StatusEnum status) {
-		this.status = status;
-	}
-
-	/**
-	 * @param status the status to set
-	 */
-	public void setStatus(String statusStr) {
-		this.status = StatusEnum.valueOf(statusStr.toUpperCase());
-	}
+//	 * @return the status
+//	 */
+//	@DynamoDBAttribute(attributeName = "status")
+//	@DynamoDBTyped(DynamoDBAttributeType.S)
+//	public StatusEnum getStatus() {
+//		return status;
+//	}
+//
+//	/**
+//	 * @param status the status to set
+//	 */
+//	public void setStatus(StatusEnum status) {
+//		this.status = status;
+//	}
+//
+//	/**
+//	 * @param status the status to set
+//	 */
+//	public void setStatus(String statusStr) {
+//		this.status = StatusEnum.valueOf(statusStr.toUpperCase());
+//	}
 
 	/**
 	 * @return the addToDlqTimestamp
@@ -236,8 +236,8 @@ public class SystemInfo {
 	@JsonProperty("last_updated_timestamp")
 	private String lastUpdatedTimestamp = null;
 
-	@JsonProperty("status")
-	private StatusEnum status = StatusEnum.UNDER_CONSTRUCTION;
+//	@JsonProperty("status")
+//	private StatusEnum status = StatusEnum.UNDER_CONSTRUCTION;
 	
 	@JsonProperty("version")
 	private int version = 1;
@@ -245,9 +245,9 @@ public class SystemInfo {
 	@JsonProperty("queued")
 	private boolean inQueue = false;
 	
-	@JsonProperty("queue_selected")  
-	private boolean selectedFromQueue = false;
-	
+//	@JsonProperty("queue_selected")
+//	private boolean selectedFromQueue = false;
+
 	@JsonProperty("queue_add_timestamp")
 	private String addToQueueTimestamp = null;
 	

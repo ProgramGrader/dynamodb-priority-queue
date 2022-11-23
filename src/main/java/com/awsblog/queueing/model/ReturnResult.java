@@ -13,11 +13,7 @@ import com.fasterxml.jackson.annotation.JsonInclude.Include;
 @JsonInclude(Include.NON_NULL)
 public class ReturnResult {
 
-	/**
-	 * Default empty c-tor
-	 * 
-	 * @param id
-	 */
+
 	public ReturnResult() {
 	
 	}
@@ -78,6 +74,9 @@ public class ReturnResult {
 		return id;
 	}
 
+//	public String getSchedule() {return schedule; }
+//	public void setSchedule(String schedule) {this.schedule = schedule;}
+
 	/**
 	 * @return the status
 	 */
@@ -85,9 +84,7 @@ public class ReturnResult {
 		return this.returnValue;
 	}
 
-	/**
-	 * @param status the status to set
-	 */
+
 	public void setReturnValue(ReturnStatusEnum returnValue) {
 		this.returnValue = returnValue;
 	}
@@ -95,16 +92,16 @@ public class ReturnResult {
 	/**
 	 * @return the status
 	 */
-	public StatusEnum getStatus() {
-		return status;
-	}
+//	public StatusEnum getStatus() {
+//		return status;
+//	}
 
 	/**
 	 * @param status the status to set
 	 */
-	public void setStatus(StatusEnum status) {
-		this.status = status;
-	}
+//	public void setStatus(StatusEnum status) {
+//		this.status = status;
+//	}
 
 	/**
 	 * @return the version
@@ -127,11 +124,14 @@ public class ReturnResult {
 	@JsonProperty("return_value")
 	private ReturnStatusEnum returnValue = ReturnStatusEnum.NONE;
 
-	@JsonProperty("status")
-	private StatusEnum status = StatusEnum.NONE;
+//	@JsonProperty("status")
+//	private StatusEnum status = StatusEnum.NONE;
 	
 	@JsonProperty("last_updated_timestamp")
 	private String lastUpdatedTimestamp = null;
+
+	@JsonProperty("schedule")
+	private String schedule = null;
 	
 	@JsonProperty("version")
 	private int version = 0;	
