@@ -6,12 +6,13 @@ import java.time.ZoneOffset;
 
 import com.awsblog.queueing.appdata.Assignment;
 
+import com.awsblog.queueing.sdk.Dynamodb;
+import com.awsblog.queueing.sdk.IDbPriorityQueue;
 import com.awsblog.queueing.sdk.QueueSdkClient;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
 /**
@@ -31,17 +32,16 @@ public class TestPutObject {
 	@Test
 	void Test_Put_Object() {
 
-		QueueSdkClient client = new QueueSdkClient.Builder()
-									.withCredentialsProfileName("default")
-									.withRegion("us-east-2")
-									.withLogicalTableName("assignment_schedule")
-									.build();
+		IDbPriorityQueue<Dynamodb> client = new Dynamodb.Builder().withCredentialsProfileName("default")
+				.withRegion("us-east-2")
+				.withLogicalTableName("assignment_schedule")
+				.build();
 
 		String AssignmentID = "Assignment-1-Ed5000";
 		String scheduled =  OffsetDateTime.now(ZoneOffset.UTC).toString();
 		Assignment assignment = new Assignment(AssignmentID, scheduled);
 		client.put(assignment);
-		assignment = client.get(AssignmentID);
+		assignment = (Assignment) client.get(AssignmentID);
 
 		assertEquals(AssignmentID,assignment.getId());
 

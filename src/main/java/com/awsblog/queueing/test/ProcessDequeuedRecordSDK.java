@@ -1,6 +1,8 @@
 package com.awsblog.queueing.test;
 
 import com.awsblog.queueing.appdata.Assignment;
+import com.awsblog.queueing.sdk.Dynamodb;
+import com.awsblog.queueing.sdk.IDbPriorityQueue;
 import com.awsblog.queueing.model.DequeueResult;
 import com.awsblog.queueing.model.PeekResult;
 import com.awsblog.queueing.model.QueueStats;
@@ -22,8 +24,7 @@ public class ProcessDequeuedRecordSDK {
 	 */
 	public static void main(String[] args) {
 
-		QueueSdkClient client = new QueueSdkClient.Builder()
-				.withCredentialsProfileName("default")
+		IDbPriorityQueue<Dynamodb> client = new Dynamodb.Builder().withCredentialsProfileName("default")
 				.withRegion("us-east-2")
 				.withLogicalTableName("assignment_schedule")
 				.build();

@@ -31,7 +31,7 @@ public class CommandLineUtils {
 	 */
 	private void parse(String[] argv) {
 		
-		if (argv == null || argv.length == 0) return;
+		if (argv == null) return;
 		
 		for(String arg : argv) {
 			

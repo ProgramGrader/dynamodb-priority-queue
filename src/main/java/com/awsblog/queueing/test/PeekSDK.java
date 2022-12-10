@@ -1,5 +1,7 @@
 package com.awsblog.queueing.test;
 
+import com.awsblog.queueing.sdk.Dynamodb;
+import com.awsblog.queueing.sdk.IDbPriorityQueue;
 import com.awsblog.queueing.model.PeekResult;
 import com.awsblog.queueing.model.QueueStats;
 import com.awsblog.queueing.sdk.QueueSdkClient;
@@ -18,10 +20,10 @@ public class PeekSDK {
 	 */
 	public static void main(String[] args) {
 
-		QueueSdkClient client = new QueueSdkClient.Builder().withCredentialsProfileName("default")
-									.withRegion("us-east-2")
-									.withLogicalTableName("assignment_schedule")
-									.build();
+		IDbPriorityQueue<Dynamodb> client = new Dynamodb.Builder().withCredentialsProfileName("default")
+				.withRegion("us-east-2")
+				.withLogicalTableName("assignment_schedule")
+				.build();
 		
 		QueueStats queueStats = client.getQueueStats();
 		System.out.println(Utils.toJSON(queueStats));

@@ -1,6 +1,8 @@
 package com.awsblog.queueing.test;
 
 import com.awsblog.queueing.appdata.Assignment;
+import com.awsblog.queueing.sdk.Dynamodb;
+import com.awsblog.queueing.sdk.IDbPriorityQueue;
 import com.awsblog.queueing.model.EnqueueResult;
 import com.awsblog.queueing.model.PeekResult;
 import com.awsblog.queueing.model.QueueStats;
@@ -27,17 +29,17 @@ public class TestSDK {
 		Assignment assignment = new Assignment();
 		assignment.setId(ID);
 		assignment.setSchedule(date);
-		
-		QueueSdkClient client = new QueueSdkClient.Builder()
-									.withCredentialsProfileName("default")
-									.withLogicalTableName("assignment_schedule")
-									.withRegion("us-east-2").build();
+
+		IDbPriorityQueue<Dynamodb> client = new Dynamodb.Builder().withCredentialsProfileName("default")
+				.withRegion("us-east-2")
+				.withLogicalTableName("assignment_schedule")
+				.build();
 		client.put(assignment);
 		
 		QueueStats queueStats = client.getQueueStats();
 		System.out.println(Utils.toJSON(queueStats));
 
-		Assignment retrievedAssignment = client.get("A-101");
+		Assignment retrievedAssignment = (Assignment) client.get("A-101");
 		System.out.println(Utils.toJSON(retrievedAssignment));
 		
 		EnqueueResult result = client.enqueue("A-101");

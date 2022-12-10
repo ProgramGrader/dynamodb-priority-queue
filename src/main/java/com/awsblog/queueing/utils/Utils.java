@@ -1,6 +1,7 @@
 package com.awsblog.queueing.utils;
 
 import java.io.UnsupportedEncodingException;
+import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
@@ -52,10 +53,9 @@ public class Utils {
 		
 		double diff = val1 - val2;
 		double percent = (diff / Math.max(val1,  val2)) * 100;
-		
-		if (percent <= percentAllowed) return true;
-		return false;
-	}
+
+        return percent <= percentAllowed;
+    }
 	
 	/**
 	 * Check if NULL or EMPTY string
@@ -183,9 +183,8 @@ public class Utils {
 	 * @return
 	 */
 	public static boolean checkIfNotNullAndNotEmptyCollection(Collection c) {
-		if (c != null && !c.isEmpty()) return true;
-		return false;
-	}
+        return c != null && !c.isEmpty();
+    }
 	
 	/**
 	 * Check if collection is NULL or empty
@@ -194,9 +193,8 @@ public class Utils {
 	 * @return
 	 */
 	public static boolean checkIfNullOrEmptyCollection(Collection c) {
-		if (c == null || c.isEmpty()) return true;
-		return false;
-	}
+        return c == null || c.isEmpty();
+    }
 
 	/**
 	 * Remove special characters due to UTF8 BOM
@@ -215,13 +213,8 @@ public class Utils {
 		int len = byteArray.length;
 		
 		if (byteArray[0] == 0xEF && byteArray[1] == 0xBB && byteArray[2] == 0xBF) {
-			try {
-				return new String(byteArray, 3, len - 3, "UTF-8");
-			} catch (UnsupportedEncodingException e) {
-				e.printStackTrace();
-				return null;
-			}
-		}
+            return new String(byteArray, 3, len - 3, StandardCharsets.UTF_8);
+        }
 		
 		int i = 0;
 		
@@ -235,14 +228,9 @@ public class Utils {
 		
 		//if ((int)s.charAt(0) == 65279 || (int)s.charAt(0) == 65533) return s.substring(1);
 		//return s;
-		
-		try {
-			return new String(byteArray, i, len, "UTF-8");
-		} catch (UnsupportedEncodingException e) {
-			e.printStackTrace();
-			return null;
-		}
-	}
+
+        return new String(byteArray, i, len, StandardCharsets.UTF_8);
+    }
 	
 	/**
 	 * Remove binary zeros
@@ -265,14 +253,9 @@ public class Utils {
 			
 			++i;
 		}
-		
-		try {
-			return new String(byteOutArray, 0, k, "UTF-8");
-		} catch (UnsupportedEncodingException e) {
-			e.printStackTrace();
-			return null;
-		}
-	}	
+
+        return new String(byteOutArray, 0, k, StandardCharsets.UTF_8);
+    }
 	
 	/**
 	 * Print bytes

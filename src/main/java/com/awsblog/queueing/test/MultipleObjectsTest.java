@@ -3,11 +3,12 @@ package com.awsblog.queueing.test;
 import java.time.LocalDate;
 
 import com.awsblog.queueing.appdata.Assignment;
+import com.awsblog.queueing.sdk.Dynamodb;
+import com.awsblog.queueing.sdk.IDbPriorityQueue;
 import com.awsblog.queueing.model.EnqueueResult;
 import com.awsblog.queueing.model.PeekResult;
-import com.awsblog.queueing.model.QueueStats;
-import com.awsblog.queueing.sdk.QueueSdkClient;
 import com.awsblog.queueing.utils.Utils;
+import com.awsblog.queueing.model.QueueStats;
 
 /**
  * Create multiple Shipment objects and store it in the database (remove previous copy, if exists)
@@ -26,12 +27,11 @@ public class MultipleObjectsTest {
 		// must add the LogicalTableName to the builder for this to work properly
 		// FYI: previous logic required the tableName to be defined in an external resource configuration.json file
 		// this logic has been updated so that we can just pass the table name instead
-
-		QueueSdkClient client = new QueueSdkClient.Builder()
-				.withCredentialsProfileName("default")
+		IDbPriorityQueue<Dynamodb> client = new Dynamodb.Builder().withCredentialsProfileName("default")
 				.withRegion("us-east-2")
 				.withLogicalTableName("assignment_schedule")
 				.build();
+
 		
 		String id1 = "A-101";
 		LocalDate date1 = LocalDate.now().plusDays(10);
@@ -57,13 +57,13 @@ public class MultipleObjectsTest {
 
 		System.out.println(Utils.toJSON(queueStats));
 //
-		Assignment a1 = client.get(id1);
+		Assignment a1 = (Assignment) client.get(id1);
 		System.out.println("Successfully inserted "+ Utils.toJSON(id1)+ " into Dynamodb");
 //
-		Assignment a2 = client.get(id2);
+		Assignment a2 = (Assignment) client.get(id2);
 		System.out.println("Successfully inserted " + Utils.toJSON(id2) + " into Dynamodb");
 //
-		Assignment a3 = client.get(id3);
+		Assignment a3 = (Assignment) client.get(id3);
 		System.out.println("Successfully inserted " + Utils.toJSON(id3) + " into Dynamodb");
 
 		// ----------------------------------------------------
