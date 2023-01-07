@@ -41,43 +41,7 @@ class SystemInfo {
         creationTimestamp = odt.toString()
         lastUpdatedTimestamp = odt.toString()
     }
-    /**
-     * @return the selectedFromQueue
-     * //
-     */
-    //	@DynamoDBAttribute(attributeName = "queue_selected")
-    //	@DynamoDBTyped(DynamoDBAttributeType.BOOL)
-    //	public boolean isSelectedFromQueue() {
-    //		return selectedFromQueue;
-    //	}
-    /**
-     * @param selectedFromQueue the selectedFromQueue to set
-     */
-    //	public void setSelectedFromQueue(boolean selectedFromQueue) {
-    //		this.selectedFromQueue = selectedFromQueue;
-    //	}
-    /**
-     * //	 * @return the status
-     * //	  */
-    //	@DynamoDBAttribute(attributeName = "status")
-    //	@DynamoDBTyped(DynamoDBAttributeType.S)
-    //	public StatusEnum getStatus() {
-    //		return status;
-    //	}
-    //
-    //	/**
-    //	 * @param status the status to set
-    //	 */
-    //	public void setStatus(StatusEnum status) {
-    //		this.status = status;
-    //	}
-    //
-    //	/**
-    //	 * @param status the status to set
-    //	 */
-    //	public void setStatus(String statusStr) {
-    //		this.status = StatusEnum.valueOf(statusStr.toUpperCase());
-    //	}
+
     /**
      * @return the ID
      */
@@ -113,8 +77,7 @@ class SystemInfo {
     /**
      * @param version the version to set
      */
-    //	@JsonProperty("status")
-    //	private StatusEnum status = StatusEnum.UNDER_CONSTRUCTION;
+
     @get:DynamoDBVersionAttribute
     @get:DynamoDBAttribute(attributeName = "version")
     @JsonProperty("version")
@@ -134,8 +97,7 @@ class SystemInfo {
     /**
      * @param addToQueueTimestamp the addToQueueTimestamp to set
      */
-    //	@JsonProperty("queue_selected")
-    //	private boolean selectedFromQueue = false;
+
     @get:DynamoDBAttribute(attributeName = "queue_add_timestamp")
     @JsonProperty("queue_add_timestamp")
     var addToQueueTimestamp: String? = null

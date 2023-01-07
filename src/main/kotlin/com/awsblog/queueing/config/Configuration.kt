@@ -168,15 +168,5 @@ class Configuration {
             return configurationObject
         }
 
-        /**
-         * Load the Configuration from JSON definition
-         *
-         * @return
-         */
-        fun loadConfiguration(): Configuration? {
-            val jsonPayload = FileUtils.getFileFromResourcesAsString(Constants.CONFIGURATION_FILE_NAME)
-            Utils.throwIfNullOrEmptyString(jsonPayload, "configuration.json is not found!")
-            return fromJSON(jsonPayload)
-        }
     }
 } // end Configuration

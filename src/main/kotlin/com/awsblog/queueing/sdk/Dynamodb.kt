@@ -1,10 +1,9 @@
 package com.awsblog.queueing.sdk
 
 import com.amazonaws.ClientConfiguration
-import com.amazonaws.auth.AWSCredentials
-import com.amazonaws.auth.AWSStaticCredentialsProvider
-import com.amazonaws.auth.BasicAWSCredentials
+import com.amazonaws.auth.*
 import com.amazonaws.auth.profile.ProfileCredentialsProvider
+import com.amazonaws.client.builder.AwsClientBuilder
 import com.amazonaws.retry.PredefinedRetryPolicies
 import com.amazonaws.retry.RetryPolicy
 import com.amazonaws.services.dynamodbv2.AmazonDynamoDB
@@ -21,26 +20,26 @@ import com.amazonaws.services.dynamodbv2.model.AttributeValue
 import com.amazonaws.services.dynamodbv2.model.QueryRequest
 import com.amazonaws.services.dynamodbv2.model.ReturnValue
 import com.awsblog.queueing.Constants
-import com.awsblog.queueing.appdata.Assignment
-import com.awsblog.queueing.config.Configuration
+import com.awsblog.queueing.appdata.DatabaseItem
 import com.awsblog.queueing.model.*
 import com.awsblog.queueing.utils.Utils
 import java.math.BigDecimal
 import java.time.OffsetDateTime
 import java.time.ZoneOffset
 import java.util.*
+import kotlin.reflect.jvm.internal.impl.load.kotlin.JvmType
 
 
 class Dynamodb(builder: Builder) : Database {
     private var credentials: AWSCredentials?
-    var logicalTableName: String?
+    var tableName: String?
     var awsRegion: String?
     var awsCredentialsProfileName: String?
     var dbMapper: DynamoDBMapper? = null
     var dynamoDB: AmazonDynamoDB? = null
 
     init {
-        logicalTableName = builder.logicalTableName
+        tableName = builder.tableName
         awsRegion = builder.awsRegion
         credentials = builder.credentials
         awsCredentialsProfileName = builder.awsCredentialsProfileName
@@ -73,49 +72,74 @@ class Dynamodb(builder: Builder) : Database {
                 )
             ).build()
 
-        // get the configuration information
-        val config: Configuration? = Configuration.Companion.loadConfiguration()
-
-        // searches this map for tableName
-//		this.actualTableName = this.config.getTablesMap().get(this.logicalTableName).getTableName();
-//		Utils.throwIfNullOrEmptyString(this.actualTableName, "Actual DynamoDB table name is not found!");
         val mapperConfig = DynamoDBMapperConfig.builder()
             .withSaveBehavior(DynamoDBMapperConfig.SaveBehavior.CLOBBER)
             .withConsistentReads(DynamoDBMapperConfig.ConsistentReads.CONSISTENT) //.withConsistentReads(DynamoDBMapperConfig.ConsistentReads.EVENTUAL)
-            .withTableNameOverride(TableNameOverride(logicalTableName))
+            .withTableNameOverride(TableNameOverride(tableName))
             .withPaginationLoadingStrategy(DynamoDBMapperConfig.PaginationLoadingStrategy.EAGER_LOADING)
             .build()
         dbMapper = DynamoDBMapper(dynamoDB, mapperConfig)
         return this
     }
 
-    override fun get(id: String?): Any {
-        return dbMapper!!.load(Assignment::class.java, id!!.trim { it <= ' ' })
+
+    // Function made for testing sdk locally
+    fun initialize(endpoint: AwsClientBuilder.EndpointConfiguration): Dynamodb {
+        Locale.setDefault(Locale.ENGLISH)
+        val builder = AmazonDynamoDBClientBuilder.standard()
+        val credentialsProvide: AWSCredentialsProvider = DefaultAWSCredentialsProviderChain()
+        builder.credentials = credentialsProvide
+
+        // initializes instance at endpoint.
+        builder.setEndpointConfiguration(endpoint)
+        dynamoDB = builder.build()
+
+
+        dbMapper = DynamoDBMapper(dynamoDB) // , mapperConfig
+        return this
     }
 
-    override fun put(item: Any) {
-        if (item.javaClass.simpleName == "Assignment") {
-            putImpl(item as Assignment)
-        } else {
-            println("Failed to insert Item into Dynamodb Object is not of type Assignment")
+    override fun get(id: String?) : DatabaseItem?{
+       return dbMapper!!.load(DatabaseItem::class.java, id?.trim { it <= ' ' })
+    }
+
+    override fun put(item: DatabaseItem) {
+        Utils.throwIfNullObject(item, " object cannot be NULL!")
+        val version = 0
+
+        // check if already present
+        val retrievedItem = dbMapper!!.load(DatabaseItem::class.java, item.id)
+        if (!Utils.checkIfNullObject(retrievedItem)) {
+            dbMapper!!.delete(retrievedItem)
         }
+
+        val odt = OffsetDateTime.now(ZoneOffset.UTC)
+        val system = SystemInfo(item.id)
+        system.isInQueue = false
+        system.creationTimestamp = odt.toString()
+        system.lastUpdatedTimestamp = odt.toString()
+        system.version = version + 1
+        item.systemInfo = system
+
+        // store it in DynamoDB
+        dbMapper!!.save(item)
     }
 
     override fun delete(id: String) {
-        Utils.throwIfNullOrEmptyString(id, "Assignment ID cannot be NULL!")
-        dbMapper!!.delete(Assignment(id))
+        Utils.throwIfNullOrEmptyString(id, "DatabaseItem ID cannot be NULL!")
+        dbMapper!!.delete(DatabaseItem(id))
     }
 
     override fun remove(id: String?): ReturnResult {
         val result = ReturnResult(id)
-        val assignment = this[id] as Assignment
-        if (Utils.checkIfNullObject(assignment)) {
+        val item = this[id]
+        if (Utils.checkIfNullObject(item)) {
             result.returnValue = ReturnStatusEnum.FAILED_ID_NOT_FOUND
             return result
         }
         val odt = OffsetDateTime.now(ZoneOffset.UTC)
         val ddb = DynamoDB(dynamoDB)
-        val table = ddb.getTable(logicalTableName)
+        val table = ddb.getTable(tableName)
         var outcome: UpdateItemOutcome? = null
         try {
             val updateItemSpec = UpdateItemSpec()
@@ -123,7 +147,7 @@ class Dynamodb(builder: Builder) : Database {
                 .withUpdateExpression(
                     "ADD #sys.#v :one "
                             + "REMOVE #sys.peek_utc_timestamp, queued, #DLQ "
-                            + "SET #sys.queued = :zero ," //#sys.queue_selected = :false, "
+                            + "SET #sys.queued = :zero ,"
                             + "#sys.last_updated_timestamp = :lut, "
                             + "last_updated_timestamp = :lut, "
                             + "#sys.queue_remove_timestamp = :lut"
@@ -134,10 +158,10 @@ class Dynamodb(builder: Builder) : Database {
                         .with("#sys", "system_info")
                 )
                 .withValueMap(
-                    assignment.systemInfo?.let {
+                    item?.systemInfo?.let {
                         ValueMap()
                             .withInt(":one", 1)
-                            .withInt(":zero", 0) //.withBoolean(":false", false)
+                            .withInt(":zero", 0)
                             .withInt(":v", it.version)
                             .withString(":lut", odt.toString())
                     }
@@ -146,53 +170,47 @@ class Dynamodb(builder: Builder) : Database {
                 .withReturnValues(ReturnValue.ALL_NEW)
             outcome = table.updateItem(updateItemSpec)
         } catch (e: Exception) {
-            System.err.println("remove() - failed to update multiple attributes in " + logicalTableName)
+            System.err.println("remove() - failed to update multiple attributes in " + tableName)
             System.err.println(e.message)
             result.returnValue = ReturnStatusEnum.FAILED_DYNAMO_ERROR
             return result
         }
-
-        // Map<String, Object> sysMap = outcome.getItem().getRawMap("system_info");
-        // result.setVersion(((BigDecimal)sysMap.get("version")).intValue());
-        //  result.setStatus(StatusEnum.valueOf((String)sysMap.get("status")));
-        //result.setLastUpdatedTimestamp((String)sysMap.get("last_updated_timestamp"));
         result.returnValue = ReturnStatusEnum.SUCCESS
         return result
     }
 
     override fun restore(id: String?): ReturnResult {
         val result = ReturnResult(id)
-        val assignment = this[id] as Assignment
-        if (Utils.checkIfNullObject(assignment)) {
+        val item = this[id]
+        if (Utils.checkIfNullObject(item)) {
             result.returnValue = ReturnStatusEnum.FAILED_ID_NOT_FOUND
             return result
         }
         val odt = OffsetDateTime.now(ZoneOffset.UTC)
         val ddb = DynamoDB(dynamoDB)
-        val table = ddb.getTable(logicalTableName)
+        val table = ddb.getTable(tableName)
         var outcome: UpdateItemOutcome? = null
         try {
             val updateItemSpec = UpdateItemSpec()
                 .withPrimaryKey("id", id)
                 .withUpdateExpression(
-                    "ADD #sys.#v :one " //    + "REMOVE #DLQ "
-                            + "SET #sys.queued = :one, queued = :one, " //	+ "#sys.queue_selected = :false, "
+                    "ADD #sys.#v :one "
+                            + "SET #sys.queued = :one, queued = :one, "
                             + "last_updated_timestamp = :lut, "
                             + "#sys.last_updated_timestamp = :lut, "
                             + "#sys.queue_add_timestamp = :lut"
-                ) //error occured due to extra space at the end
-                //+ "#sys.#st = :st")
+                ) //errors occur if there's an extra space at the end of expression
+
                 .withNameMap(
                     NameMap()
-                        .with("#v", "version") //.with("#DLQ", "DLQ")
-                        //.with("#st", "status")
+                        .with("#v", "version")
+
                         .with("#sys", "system_info")
                 )
                 .withValueMap(
-                    assignment.systemInfo?.let {
+                    item?.systemInfo?.let {
                         ValueMap().withInt(":one", 1)
-                            .withInt(":v", it.version) //.withBoolean(":false", false)
-                            //.withString(":st", StatusEnum.READY_TO_SHIP.toString())
+                            .withInt(":v", it.version)
                             .withString(":lut", odt.toString())
                     }
                 )
@@ -200,162 +218,198 @@ class Dynamodb(builder: Builder) : Database {
                 .withReturnValues(ReturnValue.ALL_NEW)
             outcome = table.updateItem(updateItemSpec)
         } catch (e: Exception) {
-            System.err.println("restore() - failed to update multiple attributes in " + logicalTableName)
+            System.err.println("restore() - failed to update multiple attributes in " + tableName)
             System.err.println(e.message)
             result.returnValue = ReturnStatusEnum.FAILED_DYNAMO_ERROR
             return result
         }
 
-//        Map<String, Object> sysMap = outcome.getItem().getRawMap("system_info");
-//        result.setVersion(((BigDecimal)sysMap.get("version")).intValue());
-//        result.setStatus(StatusEnum.valueOf((String)sysMap.get("status")));
-//        result.setLastUpdatedTimestamp((String)sysMap.get("last_updated_timestamp"));
         result.returnValue = ReturnStatusEnum.SUCCESS
         return result
     }
 
-    override fun peek(): PeekResult {
+    override fun retrieve(id: String?): ReturnResult {
         var exclusiveStartKey: Map<String?, AttributeValue?>? = null
-        val result = PeekResult()
+        val result = ReturnResult()
+        val values: MutableMap<String, AttributeValue> = HashMap()
+        values[":one"] = AttributeValue().withN("1")
+        values[":id"] = AttributeValue().withS(id)
+        var selectedID: String? = null
+
+        // this query grabs everything in sparse index, in other words all values with queued = 1
+        val queryRequest = QueryRequest()
+            .withProjectionExpression("id, scheduled, system_info")
+            .withIndexName(Constants.QUEUEING_INDEX_NAME)
+            .withTableName(tableName)
+            .withKeyConditionExpression("queued = :one")
+            .withFilterExpression("id = :id")
+            .withLimit(250)
+            .withScanIndexForward(true)
+            .withExpressionAttributeValues(values)
+        queryRequest.withExclusiveStartKey(exclusiveStartKey)
+        val queryResult = dynamoDB!!.query(queryRequest)
+        exclusiveStartKey = queryResult.lastEvaluatedKey
+
+        selectedID = queryResult.items[0]["id"]!!.s
+
+        if( (selectedID != id && exclusiveStartKey != null)){
+            result.returnValue = ReturnStatusEnum.FAILED_ID_NOT_FOUND
+            return result
+        }
+
+        result.id = selectedID
+
+        // this a simple way to construct an App object
+        result.resultObject = this[selectedID]
+        result.returnValue = ReturnStatusEnum.SUCCESS
+
+        return result
+    }
+
+
+    override fun peek(n : Int): List<DatabaseItem>{
+        var exclusiveStartKey: Map<String?, AttributeValue?>? = null
+        val result = emptyList<DatabaseItem>().toMutableList()
         val values: MutableMap<String, AttributeValue> = HashMap()
         values[":one"] = AttributeValue().withN("1")
         var selectedID: String? = null
+        val selectIDLIst = emptyList<String?>().toMutableList()
         var selectedVersion = 0
-        var recordForPeekIsFound = false
+        var recordsForPeekIsFound = false
         do {
 
             // this query grabs everything in sparse index, in other words all values with queued = 1
             val queryRequest = QueryRequest()
                 .withProjectionExpression("id, scheduled, system_info")
                 .withIndexName(Constants.QUEUEING_INDEX_NAME)
-                .withTableName(logicalTableName)
-                .withKeyConditionExpression("queued = :one") //  manages what will be in the queue
-                // This is unnecessary in our implementation because we don't need to denote a status on our items
-                //.withFilterExpression("attribute_not_exists(queue_selected)")   // we need to look for the stragglers
+                .withTableName(tableName)
+                .withKeyConditionExpression("queued = :one")
                 .withLimit(250)
                 .withScanIndexForward(true)
                 .withExpressionAttributeValues(values)
             queryRequest.withExclusiveStartKey(exclusiveStartKey)
             val queryResult = dynamoDB!!.query(queryRequest)
             exclusiveStartKey = queryResult.lastEvaluatedKey
+
+            if(n > queryResult.items.size){
+                System.err.println("peek() - number of items in queue are " + queryResult.items.size +
+                        " number of items to peek is exceeding this value ("+ n +")"+tableName)
+                return result
+            }
+
+            // Assuming that his for loop gets the first value in the queryResult: which is the top
+            var i = 0
             for (itemMap in queryResult.items) {
-                val sysMap = itemMap["system_info"]!!
-                    .m
+                val sysMap = itemMap["system_info"]!!.m
                 selectedID = itemMap["id"]!!.s
                 selectedVersion = sysMap["version"]!!.n.toInt()
-                recordForPeekIsFound = true
 
+                i++
+                selectIDLIst.add(selectedID)
+                this[selectedID].let {
+                    if (it != null) {
+                        result.add(it)
+                    }
+                }
+                if(i==n){
+                    recordsForPeekIsFound = true
+                    break
+
+                }
                 // no need to go further
-                if (recordForPeekIsFound) break
+
             }
-        } while (!recordForPeekIsFound && exclusiveStartKey != null)
+        } while (!recordsForPeekIsFound && exclusiveStartKey != null)
         if (Utils.checkIfNullObject(selectedID)) {
-            result.returnValue = ReturnStatusEnum.FAILED_EMPTY_QUEUE
             return result
         }
 
-        // assign ID to 'result'
-        result.id = selectedID
-
-        // this is an simplest way to construct an App object
-        val assignment = this[selectedID] as Assignment
         val odt = OffsetDateTime.now(ZoneOffset.UTC)
         val ddb = DynamoDB(dynamoDB)
-        val table = ddb.getTable(logicalTableName)
+        val table = ddb.getTable(tableName)
         val tsUTC = System.currentTimeMillis()
         var outcome: UpdateItemOutcome? = null
 
-        // This functionality is used to prevent us from interacting with same variable multiple times; However,
-        // we won't necessarily need this functionality, because all we want to do is get top value and see it schedule
         try {
+            // This query is just adding +1 to the version to denote that the item was touched in the system
 
-            // IMPORTANT
-            // please note, we are not updating top-level attribute `last_updated_timestamp` in order to avoid re-indexing the order
-            val updateItemSpec = UpdateItemSpec().withPrimaryKey("id", assignment.id)
-                .withUpdateExpression(
-                    "ADD #sys.#v :one "
-                            + "SET queued = :one, #sys.queued = :one,"
-                            + " #sys.last_updated_timestamp = :lut, #sys.queue_peek_timestamp = :lut, "
-                            + "#sys.peek_utc_timestamp = :ts"
-                )
-                .withNameMap(
-                    NameMap()
-                        .with("#v", "version") //.with("#st", "status")
-                        .with("#sys", "system_info")
-                )
-                .withValueMap(
-                    ValueMap()
-                        .withInt(":one", 1)
-                        .withInt(":v", selectedVersion)
-                        .withLong(":ts", tsUTC)
-                        .withString(":lut", odt.toString())
-                )
-                .withConditionExpression("#sys.#v = :v")
-                .withReturnValues(ReturnValue.ALL_NEW)
-            outcome = table.updateItem(updateItemSpec)
+            for( id in selectIDLIst) {
+                val updateItemSpec = UpdateItemSpec().withPrimaryKey("id", id)
+                    .withUpdateExpression(
+                        "ADD #sys.#v :one "
+                                + "SET queued = :one, #sys.queued = :one,"
+                                + " #sys.last_updated_timestamp = :lut, #sys.queue_peek_timestamp = :lut, "
+                                + "#sys.peek_utc_timestamp = :ts"
+                    )
+                    .withNameMap(
+                        NameMap()
+                            .with("#v", "version") //.with("#st", "status")
+                            .with("#sys", "system_info")
+                    )
+                    .withValueMap(
+                        ValueMap()
+                            .withInt(":one", 1)
+                            .withInt(":v", selectedVersion)
+                            .withLong(":ts", tsUTC)
+                            .withString(":lut", odt.toString())
+                    )
+                    .withConditionExpression("#sys.#v = :v")
+                    .withReturnValues(ReturnValue.ALL_NEW)
+                outcome = table.updateItem(updateItemSpec)
+            }
         } catch (e: Exception) {
-            System.err.println("peek() - failed to update multiple attributes in " + logicalTableName)
+            System.err.println("peek() - failed to update multiple attributes in " + tableName)
             System.err.println(e.message)
-            result.returnValue = ReturnStatusEnum.FAILED_DYNAMO_ERROR
             return result
         }
 
-        // result.setId(outcome.getItem().getString("id"));
-
-        // adding this to get the fresh data from DDB
-        val peekedAssignment = this[selectedID] as Assignment
-        result.peekedAssignmentObject = peekedAssignment
-
-        //Map<String, Object> sysMap = outcome.getItem().getRawMap("system_info");
-        //  result.setVersion(((BigDecimal)sysMap.get("version")).intValue());
-        // result.setLastUpdatedTimestamp((String)sysMap.get("last_updated_timestamp"));
-
-        // result.setStatus(StatusEnum.valueOf((String)sysMap.get("status")));
-        //result.setTimestampMillisUTC(((BigDecimal)sysMap.get("peek_utc_timestamp")).intValue());
-        result.returnValue = ReturnStatusEnum.SUCCESS
         return result
     }
 
-    override fun enqueue(id: String?): EnqueueResult {
-        val result = EnqueueResult(id)
-        if (Utils.checkIfNullOrEmptyString(id)) {
-            System.out.printf("ID is not provided ... cannot proceed with the enqueue() operation!%n")
-            result.returnValue = ReturnStatusEnum.FAILED_ID_NOT_PROVIDED
-            return result
+
+    override fun enqueue(item: DatabaseItem?): ReturnResult {
+
+
+        val result = ReturnResult(item?.id)
+        val it = this[item?.id]
+        if (Utils.checkIfNullObject(it)) {
+            System.out.printf("Item with ID [%s] does not exist in database inserting it", item?.id)
+            if (item != null) {
+                put(item)
+            }
         }
 
-//
-        val retrievedAssignment = this[id] as Assignment
-        if (Utils.checkIfNullObject(retrievedAssignment)) {
-            System.out.printf("Assignment with ID [%s] cannot be found!%n", id)
+        val retrievedItem = this[item?.id]
+        if (Utils.checkIfNullObject(retrievedItem)) {
+            System.out.printf("Item with ID [%s] cannot be found!%n", item?.id)
             result.returnValue = ReturnStatusEnum.FAILED_ID_NOT_FOUND
             return result
         }
-        val version = retrievedAssignment.systemInfo?.version
+        val version = retrievedItem?.systemInfo?.version
         val ddb = DynamoDB(dynamoDB)
-        val table = ddb.getTable(logicalTableName)
+        val table = ddb.getTable(tableName)
         if (version != null) {
             result.version = version
         }
-        result.lastUpdatedTimestamp = retrievedAssignment.systemInfo?.lastUpdatedTimestamp
+        result.lastUpdatedTimestamp = retrievedItem?.systemInfo?.lastUpdatedTimestamp
         val odt = OffsetDateTime.now(ZoneOffset.UTC)
         try {
-            val updateItemSpec = UpdateItemSpec().withPrimaryKey("id", id)
+            val updateItemSpec = UpdateItemSpec().withPrimaryKey("id", item?.id)
                 .withUpdateExpression(
                     "ADD #sys.#v :one "
-                            + "SET queued = :one, #sys.queued = :one," //#sys.queue_selected = :false, "
+                            + "SET queued = :one, #sys.queued = :one,"
                             + "last_updated_timestamp = :lut, #sys.last_updated_timestamp = :lut, "
                             + "#sys.queue_added_timestamp = :lut"
-                ) //#sys.#st = :st")
+                )
                 .withNameMap(
                     NameMap()
-                        .with("#v", "version") //.with("#st", "status")
+                        .with("#v", "version")
                         .with("#sys", "system_info")
                 )
                 .withValueMap(
                     version?.let {
                         ValueMap()
-                            .withInt(":one", 1) //.withBoolean(":false", false)
+                            .withInt(":one", 1)
                             .withInt(":v", it)
                             .withString(":lut", odt.toString())
                     }
@@ -366,11 +420,10 @@ class Dynamodb(builder: Builder) : Database {
             val sysMap = outcome.item.getRawMap("system_info")
             result.version = (sysMap["version"] as BigDecimal?)!!.toInt()
             result.lastUpdatedTimestamp = sysMap["last_updated_timestamp"] as String?
-            // result.setStatus(StatusEnum.valueOf((String)sysMap.get("status")));
-            val assignment = this[id] as Assignment
-            result.assignment = assignment
+            val updatedItem = this[item?.id]
+            result.resultObject = updatedItem
         } catch (e: Exception) {
-            System.err.println("enqueue() - failed to update multiple attributes in " + logicalTableName)
+            System.err.println("enqueue() - failed to update multiple attributes in " + tableName)
             System.err.println(e.message)
             result.returnValue = ReturnStatusEnum.FAILED_DYNAMO_ERROR
             return result
@@ -379,20 +432,21 @@ class Dynamodb(builder: Builder) : Database {
         return result
     }
 
-    override fun dequeue(): DequeueResult {
-        val peekResult = peek()
-        var dequeueResult: DequeueResult? = null
-        if (peekResult.isSuccessful) {
-            val ID = peekResult.id
-            val removeResult = this.remove(ID)
-            dequeueResult = DequeueResult.Companion.fromReturnResult(removeResult)
-            if (removeResult.isSuccessful) {
-                dequeueResult.dequeuedAssignmentObject = peekResult.peekedAssignmentObject
-            }
-        } else {
-            dequeueResult = DequeueResult.Companion.fromReturnResult(peekResult)
-        }
-        return dequeueResult
+   override fun dequeue(n:Int) :  List<DatabaseItem>{
+
+       val dequeuedItems = peek(n)
+       if (dequeuedItems.isNotEmpty()) {
+           for (item in dequeuedItems) {
+               val ID = item.id
+               ID?.let { this.delete(it) }
+              if( this[ID] != null){
+                  System.out.printf("Item with ID [%s] does not exist in database inserting it", item.id)
+              }
+           }
+       }else if (n!=0){
+           System.err.println("Queue is empty")
+       }
+        return dequeuedItems
     }
 
     override fun getQueueStats(): QueueStats {
@@ -405,23 +459,15 @@ class Dynamodb(builder: Builder) : Database {
         val values: MutableMap<String, AttributeValue> = HashMap()
         values[":one"] = AttributeValue().withN("1")
 
-        val peekedRecords = 0
 
         val allQueueIDs: List<String> = ArrayList()
         val processingIDs: List<String> = ArrayList()
 
-
-        // Gets items: id and system_info; using the scheduled_index
-        // that meet the condition of queued == 1 and then organizes them descending order
-
-
-        // Gets items: id and system_info; using the scheduled_index
-        // that meet the condition of queued == 1 and then organizes them descending order
         do {
             val queryRequest = QueryRequest()
                 .withProjectionExpression("id, system_info")
                 .withIndexName(Constants.QUEUEING_INDEX_NAME)
-                .withTableName(logicalTableName)
+                .withTableName(tableName)
                 .withExpressionAttributeNames(names)
                 .withKeyConditionExpression("#q = :one")
                 .withScanIndexForward(true)
@@ -438,36 +484,12 @@ class Dynamodb(builder: Builder) : Database {
         } while (exclusiveStartKey != null)
 
         val result = QueueStats()
-        //result.setTotalRecordsInProcessing(peekedRecords);
-        //result.setTotalRecordsInProcessing(peekedRecords);
+
         result.totalRecordsInQueue = totalQueueSize
         if (Utils.checkIfNotNullAndNotEmptyCollection(allQueueIDs)) result.first100IDsInQueue = allQueueIDs
         if (Utils.checkIfNotNullAndNotEmptyCollection(processingIDs)) result.first100SelectedIDsInQueue = processingIDs
 
         return result
-    }
-
-    private fun putImpl(assignment: Assignment) {
-        Utils.throwIfNullObject(assignment, "assignment object cannot be NULL!")
-        val version = 0
-
-        // check if already present
-        val retrievedAssignment = dbMapper!!.load(Assignment::class.java, assignment.id)
-        if (!Utils.checkIfNullObject(retrievedAssignment)) {
-            dbMapper!!.delete(retrievedAssignment)
-        }
-        val odt = OffsetDateTime.now(ZoneOffset.UTC)
-        val system = SystemInfo(assignment.id)
-        system.isInQueue = false // we want all items placed in dynamodb to also be placed into queue
-        // system.setSelectedFromQueue(false);
-        //system.setStatus(assignment.getSystemInfo().getStatus());
-        system.creationTimestamp = odt.toString()
-        system.lastUpdatedTimestamp = odt.toString()
-        system.version = version + 1
-        assignment.systemInfo = system
-
-        // store it in DynamoDB
-        dbMapper!!.save(assignment)
     }
 
 
@@ -477,20 +499,27 @@ class Dynamodb(builder: Builder) : Database {
      */
     {
         var credentials: AWSCredentials? = null
-        var logicalTableName: String? = null
+        var tableName: String? = null
         var awsRegion: String? = null
         var awsCredentialsProfileName: String? = null
         private var client: Dynamodb? = null
 
         /**
-         * Create a QueueSDK
+         * Create a DynamoDB Client
          *
-         * @return QueueSdkClient
+         * @return DynamoDB
          */
         fun build(): Dynamodb? {
             if (Utils.checkIfNullObject(client)) {
                 client = Dynamodb(this)
                 client!!.initialize()
+            }
+            return client
+        }
+        fun build(endpoint: AwsClientBuilder.EndpointConfiguration ): Dynamodb? {
+            if (Utils.checkIfNullObject(client)) {
+                client = Dynamodb(this)
+                client!!.initialize(endpoint)
             }
             return client
         }
@@ -518,8 +547,8 @@ class Dynamodb(builder: Builder) : Database {
             return this
         }
 
-        fun withLogicalTableName(logicalTableName: String?): Builder {
-            this.logicalTableName = logicalTableName
+        fun withTableName(tableName: String?): Builder {
+            this.tableName = tableName
             return this
         }
     }
