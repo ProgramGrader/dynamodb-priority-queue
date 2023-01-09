@@ -6,16 +6,12 @@ import com.awsblog.queueing.appdata.DatabaseItem
 import com.awsblog.queueing.appdata.DatabaseItemData
 import com.awsblog.queueing.sdk.Database
 import com.awsblog.queueing.sdk.Dynamodb
-import com.awsblog.queueing.utils.Utils
 import io.kotest.core.spec.style.AnnotationSpec
-import io.kotest.core.spec.style.AnnotationSpec.Test
 import io.kotest.matchers.booleans.shouldBeTrue
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.string.shouldNotBeBlank
 import io.quarkus.test.junit.QuarkusTest
 import java.time.LocalDate
-import java.util.*
-import kotlin.collections.ArrayList
 
 @QuarkusTest
 
@@ -170,9 +166,8 @@ class DynamoDBTests : AnnotationSpec() {
 
     /**
      *
-     * All that is left is to clean this up, we just want the objects values
-     * nothing more after remove the extra id in the mapped array
-     * we also want to be able to grab the values from the map and put it into its respected item.
+     * All that is left is to clean this up,
+     * Grab the values from the map and put it into its respected item.
      *
      */
 
@@ -181,13 +176,13 @@ class DynamoDBTests : AnnotationSpec() {
     fun `putting and getting items from data field`() {
 
         val data = DatabaseItemData()
-        data.items = (AssignmentItem("Hello_World", "2017-01-22"))
-        assignment1.setData(data)
+        data.item = (AssignmentItem("Hello_World", "2017-01-22"))
+        assignment1.setData(data.item as AssignmentItem) // Assignment item is not accepted here even though it implements DynamoDbTypeConverter
         client?.put(assignment1)
 
         client!![assignment1.id]?.id.shouldBe(assignment1.id)
-        val returnedData = client!![assignment1.id]?.getData()
-        (returnedData?.items as AssignmentItem).id.shouldBe("Hello_World")
+        val returnedData = client!![assignment1.id]?.getData() as AssignmentItem
+        returnedData.id.shouldBe("Hello_World")
 
     }
 }

@@ -12,12 +12,11 @@ import com.fasterxml.jackson.annotation.JsonProperty
 @DynamoDBTable(tableName = "assignment_schedule")
 class DatabaseItem {
 
-    constructor()
-
     constructor(id: String?) {
         this.id = id
     }
 
+    //Todo convert schedule to date time
     constructor(id: String, schedule: String?) {
         Utils.throwIfNullOrEmptyString(id, "ID cannot be null!")
         this.id = id.trim { it <= ' ' }
@@ -55,7 +54,7 @@ class DatabaseItem {
             systemInfo?.lastUpdatedTimestamp = lastUpdatedTimestamp
         }
 
-    @JsonProperty("version")
+    @JsonProperty("version")//accessed
     var version = 0
 
     @get:DynamoDBAttribute(attributeName = "system_info")
@@ -66,48 +65,17 @@ class DatabaseItem {
     @JsonProperty("data")
     private var data: DatabaseItemData? = null
 
-    @DynamoDBTypeConverted(converter = AssignmentItemConverter::class)
     @DynamoDBAttribute(attributeName = "data")
-    fun getData(): DatabaseItemData? {
-        return data
+    fun getData(): Any? {
+        return data?.item
     }
 
-    fun setData(data: DatabaseItemData) {
-        this.data = data
+//    fun bsetData(data: DatabaseItemData) {
+//         this.data?.item = data.item
+//    }
+
+    fun setData(data: DynamoDBTypeConverter<Any,Any>) {
+        this.data = data.unconvert(this.data) as DatabaseItemData?
     }
-
-    class AssignmentItemConverter : DynamoDBTypeConverter<String, AssignmentItem> {
-        override fun convert(`object`: AssignmentItem?): String? {
-            val item: AssignmentItem? = `object`
-            var assignment: String? = null
-            try {
-                if (item != null) {
-                    assignment = String().format(" %s,%s", item.id, item.dueDate)
-                }
-            } catch (e: Exception) {
-                e.printStackTrace()
-            }
-            return assignment
-        }
-
-        override fun unconvert(s: String?): AssignmentItem {
-            val item = AssignmentItem()
-            try {
-                if (!s.isNullOrEmpty()) run {
-                    val data = s.split(",")
-                    item.id = data[0].trim()
-                    item.dueDate = data[1].trim()
-                }
-            } catch (e: Exception) {
-                e.printStackTrace()
-            }
-            return item
-        }
-
-// {"data_1":{"S":"2023-01-14"},
-// "items":{"L":
-// [{"M":{"id":{"S":"Hello_World"},"dueDate":{"S":"2017-01-22"}}}]} ,
-// "id":{"S":"A-101"}
-// }
-    }
+    // assignmentData
 }
