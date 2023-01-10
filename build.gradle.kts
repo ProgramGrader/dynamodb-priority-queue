@@ -11,7 +11,7 @@ val quarkusPlatformVersion = "2.12.2.Final"
 plugins {
     kotlin("jvm") version "1.7.10"
     kotlin("plugin.allopen") version "1.7.10"
-
+    kotlin("plugin.serialization") version "1.7.10"
 }
 
 
@@ -36,6 +36,7 @@ dependencies {
     implementation("com.amazonaws:aws-java-sdk-dynamodb:1.12.364")
     implementation("com.amazonaws:aws-java-sdk-sns:1.12.351")
     implementation("org.apache.logging.log4j:log4j-core:2.19.0")
+    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.4.1")
 
     implementation("commons-logging:commons-logging:1.2")
     implementation("org.junit.jupiter:junit-jupiter:5.9.0")

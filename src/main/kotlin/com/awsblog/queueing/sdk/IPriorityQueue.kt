@@ -1,5 +1,5 @@
 package com.awsblog.queueing.sdk
-import com.awsblog.queueing.appdata.DatabaseItem
+import com.awsblog.queueing.appdata.PriorityQueueElement
 import com.awsblog.queueing.model.*
 
 
@@ -34,7 +34,7 @@ interface IPriorityQueue {
      * @return Object containing result for the peek() API call
      *
      */
-    fun peek(n : Int): List<DatabaseItem>
+    fun peek(n : Int): List<PriorityQueueElement>
 
     /**
      *  Inserts item to top of queue given item id, If item already exists in table inserts
@@ -42,13 +42,13 @@ interface IPriorityQueue {
      *  @param id
      *  @return Object containing result for the enqueue() API call
      */
-    fun enqueue(item: DatabaseItem?): ReturnResult
+    fun enqueue(item: PriorityQueueElement?): ReturnResult
 
     /**
      * Deletes top n items from queue and deletes it from the database
      * @return List of top n items in priority queue DatabaseItems
      */
-    fun dequeue(n:Int) :  List<DatabaseItem>
+    fun dequeue(n:Int) :  List<PriorityQueueElement>
 
     /**
      * Creates a object containing Queue content

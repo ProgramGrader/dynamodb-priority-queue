@@ -1,6 +1,6 @@
 package com.awsblog.queueing.model
 
-import com.awsblog.queueing.appdata.DatabaseItem
+import com.awsblog.queueing.appdata.PriorityQueueElement
 import com.fasterxml.jackson.annotation.JsonIgnore
 import com.fasterxml.jackson.annotation.JsonInclude
 import com.fasterxml.jackson.annotation.JsonProperty
@@ -41,7 +41,7 @@ open class ReturnResult {
     var version = 0
 
     @JsonIgnore
-    var resultObject : DatabaseItem? = null
+    var resultObject : PriorityQueueElement? = null
 } // end ReturnResult
 
 /**

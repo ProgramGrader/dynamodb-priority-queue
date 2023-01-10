@@ -1,6 +1,6 @@
 package com.awsblog.queueing.sdk
 
-import com.awsblog.queueing.appdata.DatabaseItem
+import com.awsblog.queueing.appdata.PriorityQueueElement
 
 interface Database : IPriorityQueue{
 
@@ -9,13 +9,13 @@ interface Database : IPriorityQueue{
      * @param id Identifier for item to get from table
      * @return Item if found, else null
      */
-    operator fun get(id: String?) : DatabaseItem?
+    operator fun get(id: String?) : PriorityQueueElement?
 
     /**
      * Places item into table in Database, if item exists deletes and inserts the new fresh version
      * @param id Identifier for item to get from table
      */
-    fun put(item: DatabaseItem)
+    fun put(item: PriorityQueueElement)
 
     /**
      * Removes item from table in Database

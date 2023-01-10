@@ -20,14 +20,13 @@ import com.amazonaws.services.dynamodbv2.model.AttributeValue
 import com.amazonaws.services.dynamodbv2.model.QueryRequest
 import com.amazonaws.services.dynamodbv2.model.ReturnValue
 import com.awsblog.queueing.Constants
-import com.awsblog.queueing.appdata.DatabaseItem
+import com.awsblog.queueing.appdata.PriorityQueueElement
 import com.awsblog.queueing.model.*
 import com.awsblog.queueing.utils.Utils
 import java.math.BigDecimal
 import java.time.OffsetDateTime
 import java.time.ZoneOffset
 import java.util.*
-import kotlin.reflect.jvm.internal.impl.load.kotlin.JvmType
 
 
 class Dynamodb(builder: Builder) : Database {
@@ -99,16 +98,16 @@ class Dynamodb(builder: Builder) : Database {
         return this
     }
 
-    override fun get(id: String?) : DatabaseItem?{
-       return dbMapper!!.load(DatabaseItem::class.java, id?.trim { it <= ' ' })
+    override fun get(id: String?) : PriorityQueueElement?{
+       return dbMapper!!.load(PriorityQueueElement::class.java, id?.trim { it <= ' ' })
     }
 
-    override fun put(item: DatabaseItem) {
+    override fun put(item: PriorityQueueElement) {
         Utils.throwIfNullObject(item, " object cannot be NULL!")
         val version = 0
 
         // check if already present
-        val retrievedItem = dbMapper!!.load(DatabaseItem::class.java, item.id)
+        val retrievedItem = dbMapper!!.load(PriorityQueueElement::class.java, item.id)
         if (!Utils.checkIfNullObject(retrievedItem)) {
             dbMapper!!.delete(retrievedItem)
         }
@@ -127,7 +126,7 @@ class Dynamodb(builder: Builder) : Database {
 
     override fun delete(id: String) {
         Utils.throwIfNullOrEmptyString(id, "DatabaseItem ID cannot be NULL!")
-        dbMapper!!.delete(DatabaseItem(id))
+        dbMapper!!.delete(PriorityQueueElement(id))
     }
 
     override fun remove(id: String?): ReturnResult {
@@ -267,9 +266,9 @@ class Dynamodb(builder: Builder) : Database {
     }
 
 
-    override fun peek(n : Int): List<DatabaseItem>{
+    override fun peek(n : Int): List<PriorityQueueElement>{
         var exclusiveStartKey: Map<String?, AttributeValue?>? = null
-        val result = emptyList<DatabaseItem>().toMutableList()
+        val result = emptyList<PriorityQueueElement>().toMutableList()
         val values: MutableMap<String, AttributeValue> = HashMap()
         values[":one"] = AttributeValue().withN("1")
         var selectedID: String? = null
@@ -367,7 +366,7 @@ class Dynamodb(builder: Builder) : Database {
     }
 
 
-    override fun enqueue(item: DatabaseItem?): ReturnResult {
+    override fun enqueue(item: PriorityQueueElement?): ReturnResult {
 
 
         val result = ReturnResult(item?.id)
@@ -432,7 +431,7 @@ class Dynamodb(builder: Builder) : Database {
         return result
     }
 
-   override fun dequeue(n:Int) :  List<DatabaseItem>{
+   override fun dequeue(n:Int) :  List<PriorityQueueElement>{
 
        val dequeuedItems = peek(n)
        if (dequeuedItems.isNotEmpty()) {

@@ -1,9 +1,7 @@
 package com.awsblog.queueing
 
 import com.amazonaws.client.builder.AwsClientBuilder.EndpointConfiguration
-import com.awsblog.queueing.appdata.AssignmentItem
-import com.awsblog.queueing.appdata.DatabaseItem
-import com.awsblog.queueing.appdata.DatabaseItemData
+import com.awsblog.queueing.appdata.PriorityQueueElement
 import com.awsblog.queueing.sdk.Database
 import com.awsblog.queueing.sdk.Dynamodb
 import io.kotest.core.spec.style.AnnotationSpec
@@ -11,13 +9,16 @@ import io.kotest.matchers.booleans.shouldBeTrue
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.string.shouldNotBeBlank
 import io.quarkus.test.junit.QuarkusTest
+import kotlinx.serialization.decodeFromString
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
 import java.time.LocalDate
 
 @QuarkusTest
 
 class DynamoDBTests : AnnotationSpec() {
 
-    val endpoint = EndpointConfiguration("http://localhost:4566/", "local")
+    private final val endpoint = EndpointConfiguration("http://localhost:4566/", "local")
     val client: Database? = Dynamodb.Builder()
         .withRegion("us-east-2")
         .withTableName("assignment_schedule")
@@ -25,25 +26,25 @@ class DynamoDBTests : AnnotationSpec() {
 
     // Data to Insert
     final val id1 = "A-101"
-    val date1: LocalDate = LocalDate.now().plusDays(10)
-    val assignment1 = DatabaseItem(id1, date1.toString())
+    final val date1: LocalDate = LocalDate.now().plusDays(10)
+    val assignment1 = PriorityQueueElement(id1, date1.toString())
 
     final val id2 = "A-202"
     final val date2: LocalDate = LocalDate.now().plusDays(2)
-    val assignment2 = DatabaseItem(id2, date2.toString())
+    val assignment2 = PriorityQueueElement(id2, date2.toString())
 
     final val id3 = "A-303"
-    val date3: LocalDate = LocalDate.now().plusDays(3)
-    val assignment3 = DatabaseItem(id3, date3.toString())
+    final val date3: LocalDate = LocalDate.now().plusDays(3)
+    val assignment3 = PriorityQueueElement(id3, date3.toString())
 
 
 
-//    @Before
-//    fun insertItems(){
-//        client!!.put(assignment1)
-//        client!!.put(assignment2)
-//        client!!.put(assignment3)
-//    }
+    @Before
+    fun insertItems(){
+        client!!.put(assignment1)
+        client!!.put(assignment2)
+        client!!.put(assignment3)
+    }
 
 //    @After
 //    fun deleteItems(){
@@ -174,15 +175,14 @@ class DynamoDBTests : AnnotationSpec() {
 
     @Test
     fun `putting and getting items from data field`() {
-
-        val data = DatabaseItemData()
-        data.item = (AssignmentItem("Hello_World", "2017-01-22"))
-        assignment1.setData(data.item as AssignmentItem) // Assignment item is not accepted here even though it implements DynamoDbTypeConverter
+        val test: DummyDataClass = DummyDataClass("Test",3)
+        assignment1.data = (Json.encodeToString(test)) // Assignment item is not accepted here even though it implements DynamoDbTypeConverter
         client?.put(assignment1)
 
         client!![assignment1.id]?.id.shouldBe(assignment1.id)
-        val returnedData = client!![assignment1.id]?.getData() as AssignmentItem
-        returnedData.id.shouldBe("Hello_World")
+        val temp = client!![assignment1.id]!!.data!!;
+        val returnedData = Json.decodeFromString<DummyDataClass>(temp)
+        returnedData.testInt.shouldBe(3)
 
     }
 }

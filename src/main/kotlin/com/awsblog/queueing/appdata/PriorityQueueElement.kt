@@ -7,11 +7,12 @@ import com.fasterxml.jackson.annotation.JsonIgnore
 import com.fasterxml.jackson.annotation.JsonInclude
 import com.fasterxml.jackson.annotation.JsonProperty
 
-
+//TODO table name needs to be dynamic
 @JsonInclude(JsonInclude.Include.NON_NULL)
 @DynamoDBTable(tableName = "assignment_schedule")
-class DatabaseItem {
+class PriorityQueueElement {
 
+    constructor()
     constructor(id: String?) {
         this.id = id
     }
@@ -62,20 +63,17 @@ class DatabaseItem {
     var systemInfo: SystemInfo? = null
 
 
+    @get:DynamoDBAttribute(attributeName = "data")
     @JsonProperty("data")
-    private var data: DatabaseItemData? = null
+    var data: String? = null
 
-    @DynamoDBAttribute(attributeName = "data")
-    fun getData(): Any? {
-        return data?.item
-    }
 
-//    fun bsetData(data: DatabaseItemData) {
-//         this.data?.item = data.item
+//    fun getData(): String? {
+//        return data
+//    }
+//
+//    fun setData(data: String) {
+//         this.data = data;
 //    }
 
-    fun setData(data: DynamoDBTypeConverter<Any,Any>) {
-        this.data = data.unconvert(this.data) as DatabaseItemData?
-    }
-    // assignmentData
 }
