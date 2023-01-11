@@ -1,7 +1,7 @@
-## Date Priority Queuing
+## Dynamodb Priority Queue
 
-Provides a Dynamodb table and sdk that allows you to prioritize items based off of date
-in descending order. 
+A sdk that allows you to prioritize items based off of date in descending order. 
+(Dynamodb table must match specifics in test/terraform/main.tf)
 
 ## Quick start
 
