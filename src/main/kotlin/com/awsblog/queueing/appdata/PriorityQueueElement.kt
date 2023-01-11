@@ -3,26 +3,28 @@ package com.awsblog.queueing.appdata
 import com.amazonaws.services.dynamodbv2.datamodeling.*
 import com.awsblog.queueing.model.SystemInfo
 import com.awsblog.queueing.utils.Utils
-import com.fasterxml.jackson.annotation.JsonIgnore
 import com.fasterxml.jackson.annotation.JsonInclude
 import com.fasterxml.jackson.annotation.JsonProperty
+import org.joda.time.DateTime
+import org.joda.time.LocalDate
+import java.util.logging.Logger
 
-//TODO table name needs to be dynamic
 @JsonInclude(JsonInclude.Include.NON_NULL)
-@DynamoDBTable(tableName = "assignment_schedule")
+@DynamoDBTable(tableName = "priority_queue_table")
 class PriorityQueueElement {
-
+    companion object {
+        val LOG = Logger.getLogger(PriorityQueueElement::class.java.name)
+    }
     constructor()
     constructor(id: String?) {
         this.id = id
     }
 
-    //Todo convert schedule to date time
-    constructor(id: String, schedule: String?) {
+    constructor(id: String, date: LocalDate?) {
         Utils.throwIfNullOrEmptyString(id, "ID cannot be null!")
         this.id = id.trim { it <= ' ' }
         systemInfo = SystemInfo(this.id)
-        this.schedule = schedule
+        this.schedule = date.toString()
     }
 
 
@@ -37,26 +39,19 @@ class PriorityQueueElement {
     /**
      * item to store GSI range key values
      */
-    @get:DynamoDBAttribute(attributeName = "scheduled")
+
     @JsonProperty("schedule")
-    var schedule: String? = null
+    private var schedule: String? = null
 
-    @get:DynamoDBAttribute(attributeName = "last_updated_timestamp")
-    @get:JsonIgnore
-    var lastUpdatedTimestamp: String?
-        /**
-         * @return the lastUpdatedTimestamp
-         */
-        get() = systemInfo?.lastUpdatedTimestamp
-        /**
-         * @param lastUpdatedTimestamp the lastUpdatedTimestamp to set
-         */
-        set(lastUpdatedTimestamp) {
-            systemInfo?.lastUpdatedTimestamp = lastUpdatedTimestamp
-        }
+    @DynamoDBAttribute(attributeName = "schedule")
+    fun getSchedule(): String?{
+        return this.schedule
+    }
 
-    @JsonProperty("version")//accessed
-    var version = 0
+    fun setSchedule(date: String?) {
+        this.schedule = date
+    }
+
 
     @get:DynamoDBAttribute(attributeName = "system_info")
     @JsonProperty("system_info")
@@ -67,13 +62,23 @@ class PriorityQueueElement {
     @JsonProperty("data")
     var data: String? = null
 
+    fun convertDateToIso(){
 
-//    fun getData(): String? {
-//        return data
-//    }
-//
-//    fun setData(data: String) {
-//         this.data = data;
-//    }
+        var isIso = true
+
+        try {
+            java.time.format.DateTimeFormatter.ISO_DATE_TIME.parse(this.schedule);
+        }catch (e: java.time.DateTimeException){
+            isIso = false
+        }
+
+        if(!isIso){
+            this.schedule=DateTime().withDate(LocalDate.parse(this.schedule)).toDateTimeISO().toString()
+        }else{
+            LOG.info("Date is already of iso_format")
+        }
+
+    }
+
 
 }

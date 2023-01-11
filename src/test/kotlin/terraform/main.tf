@@ -6,7 +6,7 @@ provider "aws" {
 
 resource "aws_dynamodb_table" "assignment_schedule" {
 
-  name     = "assignment_schedule"
+  name     = "priority_queue_table"
   billing_mode = "PAY_PER_REQUEST"
   hash_key = "id"
 
@@ -16,13 +16,7 @@ resource "aws_dynamodb_table" "assignment_schedule" {
   }
 
   attribute {
-    name = "scheduled"
-    type = "S"
-  }
-
-
-  attribute {
-    name = "last_updated_timestamp"
+    name = "schedule"
     type = "S"
   }
 
@@ -31,25 +25,12 @@ resource "aws_dynamodb_table" "assignment_schedule" {
     type = "N"
   }
 
-  attribute {
-    name = "DLQ"
-    type = "N"
-  }
-
   global_secondary_index {
     name               = "scheduled-index"
     hash_key           = "queued"
-    range_key          = "scheduled"
+    range_key          = "schedule"
     projection_type    = "ALL"
   }
-
-  global_secondary_index {
-    name               = "dlq-last_updated_timestamp-index"
-    hash_key           = "DLQ"
-    range_key          = "last_updated_timestamp"
-    projection_type    = "ALL"
-  }
-
 
 }
 

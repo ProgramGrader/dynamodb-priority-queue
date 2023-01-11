@@ -104,7 +104,7 @@ class Dynamodb(builder: Builder) : Database {
 
     override fun put(item: PriorityQueueElement) {
         Utils.throwIfNullObject(item, " object cannot be NULL!")
-        val version = 0
+        val accessed = 0
 
         // check if already present
         val retrievedItem = dbMapper!!.load(PriorityQueueElement::class.java, item.id)
@@ -114,10 +114,9 @@ class Dynamodb(builder: Builder) : Database {
 
         val odt = OffsetDateTime.now(ZoneOffset.UTC)
         val system = SystemInfo(item.id)
-        system.isInQueue = false
         system.creationTimestamp = odt.toString()
         system.lastUpdatedTimestamp = odt.toString()
-        system.version = version + 1
+        system.accessed = accessed + 1
         item.systemInfo = system
 
         // store it in DynamoDB
@@ -129,103 +128,105 @@ class Dynamodb(builder: Builder) : Database {
         dbMapper!!.delete(PriorityQueueElement(id))
     }
 
-    override fun remove(id: String?): ReturnResult {
-        val result = ReturnResult(id)
-        val item = this[id]
-        if (Utils.checkIfNullObject(item)) {
-            result.returnValue = ReturnStatusEnum.FAILED_ID_NOT_FOUND
-            return result
-        }
-        val odt = OffsetDateTime.now(ZoneOffset.UTC)
-        val ddb = DynamoDB(dynamoDB)
-        val table = ddb.getTable(tableName)
-        var outcome: UpdateItemOutcome? = null
-        try {
-            val updateItemSpec = UpdateItemSpec()
-                .withPrimaryKey("id", id)
-                .withUpdateExpression(
-                    "ADD #sys.#v :one "
-                            + "REMOVE #sys.peek_utc_timestamp, queued, #DLQ "
-                            + "SET #sys.queued = :zero ,"
-                            + "#sys.last_updated_timestamp = :lut, "
-                            + "last_updated_timestamp = :lut, "
-                            + "#sys.queue_remove_timestamp = :lut"
-                )
-                .withNameMap(
-                    NameMap().with("#v", "version")
-                        .with("#DLQ", "DLQ")
-                        .with("#sys", "system_info")
-                )
-                .withValueMap(
-                    item?.systemInfo?.let {
-                        ValueMap()
-                            .withInt(":one", 1)
-                            .withInt(":zero", 0)
-                            .withInt(":v", it.version)
-                            .withString(":lut", odt.toString())
-                    }
-                )
-                .withConditionExpression("#sys.#v = :v")
-                .withReturnValues(ReturnValue.ALL_NEW)
-            outcome = table.updateItem(updateItemSpec)
-        } catch (e: Exception) {
-            System.err.println("remove() - failed to update multiple attributes in " + tableName)
-            System.err.println(e.message)
-            result.returnValue = ReturnStatusEnum.FAILED_DYNAMO_ERROR
-            return result
-        }
-        result.returnValue = ReturnStatusEnum.SUCCESS
-        return result
-    }
+    // currently unnecessary but may be useful down the road
+//    override fun remove(id: String?): ReturnResult {
+//        val result = ReturnResult(id)
+//        val item = this[id]
+//        if (Utils.checkIfNullObject(item)) {
+//            result.returnValue = ReturnStatusEnum.FAILED_ID_NOT_FOUND
+//            return result
+//        }
+//        val odt = OffsetDateTime.now(ZoneOffset.UTC)
+//        val ddb = DynamoDB(dynamoDB)
+//        val table = ddb.getTable(tableName)
+//        var outcome: UpdateItemOutcome? = null
+//        try {
+//            val updateItemSpec = UpdateItemSpec()
+//                .withPrimaryKey("id", id)
+//                .withUpdateExpression(
+//                    "ADD #sys.#v :one "
+//                            + "REMOVE #sys.peek_utc_timestamp, queued, #DLQ "
+//                            + "SET #sys.queued = :zero ,"
+//                            + "#sys.last_updated_timestamp = :lut, "
+//                            + "last_updated_timestamp = :lut, "
+//                            + "#sys.queue_remove_timestamp = :lut"
+//                )
+//                .withNameMap(
+//                    NameMap().with("#v", "accessed")
+//                        .with("#DLQ", "DLQ")
+//                        .with("#sys", "system_info")
+//                )
+//                .withValueMap(
+//                    item?.systemInfo?.let {
+//                        ValueMap()
+//                            .withInt(":one", 1)
+//                            .withInt(":zero", 0)
+//                            .withInt(":v", it.accessed)
+//                            .withString(":lut", odt.toString())
+//                    }
+//                )
+//                .withConditionExpression("#sys.#v = :v")
+//                .withReturnValues(ReturnValue.ALL_NEW)
+//            outcome = table.updateItem(updateItemSpec)
+//        } catch (e: Exception) {
+//            System.err.println("remove() - failed to update multiple attributes in " + tableName)
+//            System.err.println(e.message)
+//            result.returnValue = ReturnStatusEnum.FAILED_DYNAMO_ERROR
+//            return result
+//        }
+//        result.returnValue = ReturnStatusEnum.SUCCESS
+//        return result
+//    }
 
-    override fun restore(id: String?): ReturnResult {
-        val result = ReturnResult(id)
-        val item = this[id]
-        if (Utils.checkIfNullObject(item)) {
-            result.returnValue = ReturnStatusEnum.FAILED_ID_NOT_FOUND
-            return result
-        }
-        val odt = OffsetDateTime.now(ZoneOffset.UTC)
-        val ddb = DynamoDB(dynamoDB)
-        val table = ddb.getTable(tableName)
-        var outcome: UpdateItemOutcome? = null
-        try {
-            val updateItemSpec = UpdateItemSpec()
-                .withPrimaryKey("id", id)
-                .withUpdateExpression(
-                    "ADD #sys.#v :one "
-                            + "SET #sys.queued = :one, queued = :one, "
-                            + "last_updated_timestamp = :lut, "
-                            + "#sys.last_updated_timestamp = :lut, "
-                            + "#sys.queue_add_timestamp = :lut"
-                ) //errors occur if there's an extra space at the end of expression
-
-                .withNameMap(
-                    NameMap()
-                        .with("#v", "version")
-
-                        .with("#sys", "system_info")
-                )
-                .withValueMap(
-                    item?.systemInfo?.let {
-                        ValueMap().withInt(":one", 1)
-                            .withInt(":v", it.version)
-                            .withString(":lut", odt.toString())
-                    }
-                )
-                .withConditionExpression("#sys.#v = :v")
-                .withReturnValues(ReturnValue.ALL_NEW)
-            outcome = table.updateItem(updateItemSpec)
-        } catch (e: Exception) {
-            System.err.println("restore() - failed to update multiple attributes in " + tableName)
-            System.err.println(e.message)
-            result.returnValue = ReturnStatusEnum.FAILED_DYNAMO_ERROR
-            return result
-        }
-
-        result.returnValue = ReturnStatusEnum.SUCCESS
-        return result
-    }
+    // currently unnecessary but may be useful down the road
+//    override fun restore(id: String?): ReturnResult {
+//        val result = ReturnResult(id)
+//        val item = this[id]
+//        if (Utils.checkIfNullObject(item)) {
+//            result.returnValue = ReturnStatusEnum.FAILED_ID_NOT_FOUND
+//            return result
+//        }
+//        val odt = OffsetDateTime.now(ZoneOffset.UTC)
+//        val ddb = DynamoDB(dynamoDB)
+//        val table = ddb.getTable(tableName)
+//        var outcome: UpdateItemOutcome? = null
+//        try {
+//            val updateItemSpec = UpdateItemSpec()
+//                .withPrimaryKey("id", id)
+//                .withUpdateExpression(
+//                    "ADD #sys.#v :one "
+//                            + "SET #sys.queued = :one, queued = :one, "
+//                            + "last_updated_timestamp = :lut, "
+//                            + "#sys.last_updated_timestamp = :lut, "
+//                            + "#sys.queue_add_timestamp = :lut"
+//                ) //errors occur if there's an extra space at the end of expression
+//
+//                .withNameMap(
+//                    NameMap()
+//                        .with("#v", "accessed")
+//
+//                        .with("#sys", "system_info")
+//                )
+//                .withValueMap(
+//                    item?.systemInfo?.let {
+//                        ValueMap().withInt(":one", 1)
+//                            .withInt(":v", it.accessed)
+//                            .withString(":lut", odt.toString())
+//                    }
+//                )
+//                .withConditionExpression("#sys.#v = :v")
+//                .withReturnValues(ReturnValue.ALL_NEW)
+//            outcome = table.updateItem(updateItemSpec)
+//        } catch (e: Exception) {
+//            System.err.println("restore() - failed to update multiple attributes in " + tableName)
+//            System.err.println(e.message)
+//            result.returnValue = ReturnStatusEnum.FAILED_DYNAMO_ERROR
+//            return result
+//        }
+//
+//        result.returnValue = ReturnStatusEnum.SUCCESS
+//        return result
+//    }
 
     override fun retrieve(id: String?): ReturnResult {
         var exclusiveStartKey: Map<String?, AttributeValue?>? = null
@@ -237,7 +238,7 @@ class Dynamodb(builder: Builder) : Database {
 
         // this query grabs everything in sparse index, in other words all values with queued = 1
         val queryRequest = QueryRequest()
-            .withProjectionExpression("id, scheduled, system_info")
+            .withProjectionExpression("id, schedule, system_info")
             .withIndexName(Constants.QUEUEING_INDEX_NAME)
             .withTableName(tableName)
             .withKeyConditionExpression("queued = :one")
@@ -273,13 +274,13 @@ class Dynamodb(builder: Builder) : Database {
         values[":one"] = AttributeValue().withN("1")
         var selectedID: String? = null
         val selectIDLIst = emptyList<String?>().toMutableList()
-        var selectedVersion = 0
+        var selectedaccessed = 0
         var recordsForPeekIsFound = false
         do {
 
             // this query grabs everything in sparse index, in other words all values with queued = 1
             val queryRequest = QueryRequest()
-                .withProjectionExpression("id, scheduled, system_info")
+                .withProjectionExpression("id, schedule, system_info")
                 .withIndexName(Constants.QUEUEING_INDEX_NAME)
                 .withTableName(tableName)
                 .withKeyConditionExpression("queued = :one")
@@ -301,7 +302,7 @@ class Dynamodb(builder: Builder) : Database {
             for (itemMap in queryResult.items) {
                 val sysMap = itemMap["system_info"]!!.m
                 selectedID = itemMap["id"]!!.s
-                selectedVersion = sysMap["version"]!!.n.toInt()
+                selectedaccessed = sysMap["accessed"]!!.n.toInt()
 
                 i++
                 selectIDLIst.add(selectedID)
@@ -330,7 +331,7 @@ class Dynamodb(builder: Builder) : Database {
         var outcome: UpdateItemOutcome? = null
 
         try {
-            // This query is just adding +1 to the version to denote that the item was touched in the system
+            // This query is just adding +1 to the accessed to denote that the item was touched in the system
 
             for( id in selectIDLIst) {
                 val updateItemSpec = UpdateItemSpec().withPrimaryKey("id", id)
@@ -342,13 +343,13 @@ class Dynamodb(builder: Builder) : Database {
                     )
                     .withNameMap(
                         NameMap()
-                            .with("#v", "version") //.with("#st", "status")
+                            .with("#v", "accessed") //.with("#st", "status")
                             .with("#sys", "system_info")
                     )
                     .withValueMap(
                         ValueMap()
                             .withInt(":one", 1)
-                            .withInt(":v", selectedVersion)
+                            .withInt(":v", selectedaccessed)
                             .withLong(":ts", tsUTC)
                             .withString(":lut", odt.toString())
                     )
@@ -384,11 +385,11 @@ class Dynamodb(builder: Builder) : Database {
             result.returnValue = ReturnStatusEnum.FAILED_ID_NOT_FOUND
             return result
         }
-        val version = retrievedItem?.systemInfo?.version
+        val accessed = retrievedItem?.systemInfo?.accessed
         val ddb = DynamoDB(dynamoDB)
         val table = ddb.getTable(tableName)
-        if (version != null) {
-            result.version = version
+        if (accessed != null) {
+            result.accessed = accessed
         }
         result.lastUpdatedTimestamp = retrievedItem?.systemInfo?.lastUpdatedTimestamp
         val odt = OffsetDateTime.now(ZoneOffset.UTC)
@@ -397,16 +398,16 @@ class Dynamodb(builder: Builder) : Database {
                 .withUpdateExpression(
                     "ADD #sys.#v :one "
                             + "SET queued = :one, #sys.queued = :one,"
-                            + "last_updated_timestamp = :lut, #sys.last_updated_timestamp = :lut, "
+                            + "#sys.last_updated_timestamp = :lut, "
                             + "#sys.queue_added_timestamp = :lut"
                 )
                 .withNameMap(
                     NameMap()
-                        .with("#v", "version")
+                        .with("#v", "accessed")
                         .with("#sys", "system_info")
                 )
                 .withValueMap(
-                    version?.let {
+                    accessed?.let {
                         ValueMap()
                             .withInt(":one", 1)
                             .withInt(":v", it)
@@ -417,7 +418,7 @@ class Dynamodb(builder: Builder) : Database {
                 .withReturnValues(ReturnValue.ALL_NEW)
             val outcome = table.updateItem(updateItemSpec)
             val sysMap = outcome.item.getRawMap("system_info")
-            result.version = (sysMap["version"] as BigDecimal?)!!.toInt()
+            result.accessed = (sysMap["accessed"] as BigDecimal?)!!.toInt()
             result.lastUpdatedTimestamp = sysMap["last_updated_timestamp"] as String?
             val updatedItem = this[item?.id]
             result.resultObject = updatedItem

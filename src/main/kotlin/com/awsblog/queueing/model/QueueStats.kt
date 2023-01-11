@@ -12,10 +12,6 @@ import java.io.IOException
  */
 @JsonInclude(JsonInclude.Include.NON_NULL)
 class QueueStats
-/**
- * C-tor
- *
- */
 {
     /**
      * toString
@@ -35,29 +31,14 @@ class QueueStats
         }
         return sb.toString()
     }
-    /**
-     * @return the first100IDsInQueue
-     */
-    /**
-     * @param first100iDsInQueue the first100IDsInQueue to set
-     */
+
     // ---------------- fields
     @JsonProperty("first_100_IDs_in_queue")
     var first100IDsInQueue: List<String>? = null
-    /**
-     * @return the first100SelectedIDsInQueue
-     */
-    /**
-     * @param first100SelectedIDsInQueue the first100SelectedIDsInQueue to set
-     */
+
     @JsonProperty("first_100_selected_IDs_in_queue")
     var first100SelectedIDsInQueue: List<String>? = null
-    /**
-     * @return the totalRecordsInQueue
-     */
-    /**
-     * @param totalRecordsInQueue the totalRecordsInQueue to set
-     */
+
     @JsonProperty("total_records_in_queue")
     var totalRecordsInQueue = 0
 

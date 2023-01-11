@@ -1,7 +1,7 @@
 package com.awsblog.queueing.sdk
 import com.awsblog.queueing.appdata.PriorityQueueElement
 import com.awsblog.queueing.model.*
-
+import javax.xml.crypto.Data
 
 
 interface IPriorityQueue {
@@ -12,14 +12,14 @@ interface IPriorityQueue {
      * @return base object containing values
      *
      */
-    fun remove(id: String?): ReturnResult
+    //fun remove(id: String?): ReturnResult
 
     /**
      * Restores item to queue given item id
      * @param id
      * @return base object containing values
      */
-    fun restore(id: String?): ReturnResult
+    //fun restore(id: String?): ReturnResult
 
 
     /**

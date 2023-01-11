@@ -37,13 +37,9 @@ open class ReturnResult {
     @JsonProperty("last_updated_timestamp")
     var lastUpdatedTimestamp: String? = null
 
-    @JsonProperty("version")
-    var version = 0
+    @JsonProperty("accessed")
+    var accessed = 0
 
     @JsonIgnore
     var resultObject : PriorityQueueElement? = null
 } // end ReturnResult
-
-/**
- * This Result object is necessary
- */
