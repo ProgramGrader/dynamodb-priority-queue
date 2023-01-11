@@ -2,7 +2,7 @@ package bbs.priorityqueue.sdk
 import bbs.priorityqueue.appdata.PriorityQueueElement
 import bbs.priorityqueue.model.QueueStats
 import bbs.priorityqueue.model.ReturnResult
-import com.awsblog.queueing.model.*
+import bbs.priorityqueue.model.*
 
 
 interface IPriorityQueue {

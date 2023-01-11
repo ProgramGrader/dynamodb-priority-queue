@@ -125,9 +125,9 @@ kotlin {
         }
         val jvmTest by getting {
             dependencies {
-                implementation("io.rest-assured:rest-assured")
+//                implementation("io.rest-assured:rest-assured")
                 implementation("io.kotest:kotest-runner-junit5:5.5.4")
-                implementation("io.quarkus:quarkus-junit5")
+//                implementation("io.quarkus:quarkus-junit5")
                 implementation("org.jetbrains.kotlin:kotlin-test:1.8.0-RC")
             }
         }
