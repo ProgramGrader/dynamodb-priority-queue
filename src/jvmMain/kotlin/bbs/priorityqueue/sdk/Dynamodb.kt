@@ -1,4 +1,4 @@
-package com.awsblog.queueing.sdk
+package bbs.priorityqueue.sdk
 
 import com.amazonaws.ClientConfiguration
 import com.amazonaws.auth.*
@@ -19,10 +19,13 @@ import com.amazonaws.services.dynamodbv2.document.utils.ValueMap
 import com.amazonaws.services.dynamodbv2.model.AttributeValue
 import com.amazonaws.services.dynamodbv2.model.QueryRequest
 import com.amazonaws.services.dynamodbv2.model.ReturnValue
-import com.awsblog.queueing.Constants
-import com.awsblog.queueing.appdata.PriorityQueueElement
-import com.awsblog.queueing.model.*
-import com.awsblog.queueing.utils.Utils
+import bbs.priorityqueue.Constants
+import bbs.priorityqueue.appdata.PriorityQueueElement
+import bbs.priorityqueue.model.QueueStats
+import bbs.priorityqueue.model.ReturnResult
+import bbs.priorityqueue.model.ReturnStatusEnum
+import bbs.priorityqueue.model.SystemInfo
+import bbs.priorityqueue.utils.Utils
 import java.math.BigDecimal
 import java.time.OffsetDateTime
 import java.time.ZoneOffset
@@ -44,7 +47,7 @@ class Dynamodb(builder: Builder) : Database {
         awsCredentialsProfileName = builder.awsCredentialsProfileName
     }
 
-    override fun initialize() :Database {
+    override fun initialize() : Database {
         Locale.setDefault(Locale.ENGLISH)
         var accessKey = System.getenv("AWS_ACCESS_KEY_ID")
         var secretKey = System.getenv("AWS_SECRET_ACCESS_KEY")

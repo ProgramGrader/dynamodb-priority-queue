@@ -1,7 +1,8 @@
-package com.awsblog.queueing.sdk
-import com.awsblog.queueing.appdata.PriorityQueueElement
+package bbs.priorityqueue.sdk
+import bbs.priorityqueue.appdata.PriorityQueueElement
+import bbs.priorityqueue.model.QueueStats
+import bbs.priorityqueue.model.ReturnResult
 import com.awsblog.queueing.model.*
-import javax.xml.crypto.Data
 
 
 interface IPriorityQueue {
@@ -54,6 +55,6 @@ interface IPriorityQueue {
      * Creates a object containing Queue content
      * @return Object with various queue depth statistics
      */
-    fun getQueueStats() :QueueStats
+    fun getQueueStats() : QueueStats
 
 }

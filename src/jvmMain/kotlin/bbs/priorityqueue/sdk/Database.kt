@@ -1,8 +1,8 @@
-package com.awsblog.queueing.sdk
+package bbs.priorityqueue.sdk
 
-import com.awsblog.queueing.appdata.PriorityQueueElement
+import bbs.priorityqueue.appdata.PriorityQueueElement
 
-interface Database : IPriorityQueue{
+interface Database : IPriorityQueue {
 
     /**
      * Gets item from table in Database

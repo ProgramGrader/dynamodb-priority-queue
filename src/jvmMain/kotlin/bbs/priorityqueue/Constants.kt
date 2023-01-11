@@ -1,4 +1,4 @@
-package com.awsblog.queueing
+package bbs.priorityqueue
 
 /**
  * Keep the project constants

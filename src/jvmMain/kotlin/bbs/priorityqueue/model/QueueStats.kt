@@ -1,4 +1,4 @@
-package com.awsblog.queueing.model
+package bbs.priorityqueue.model
 
 import com.fasterxml.jackson.annotation.JsonInclude
 import com.fasterxml.jackson.annotation.JsonProperty

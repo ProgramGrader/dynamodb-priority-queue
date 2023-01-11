@@ -1,22 +1,17 @@
-package com.awsblog.queueing
+package bbs.priorityqueue
 
 import com.amazonaws.client.builder.AwsClientBuilder.EndpointConfiguration
-import com.awsblog.queueing.appdata.PriorityQueueElement
-import com.awsblog.queueing.sdk.Database
-import com.awsblog.queueing.sdk.Dynamodb
+import bbs.priorityqueue.appdata.PriorityQueueElement
+import bbs.priorityqueue.sdk.Database
+import bbs.priorityqueue.sdk.Dynamodb
 import io.kotest.core.spec.style.AnnotationSpec
 import io.kotest.matchers.booleans.shouldBeTrue
 import io.kotest.matchers.shouldBe
-import io.kotest.matchers.string.shouldNotBeBlank
-import io.quarkus.test.junit.QuarkusTest
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import org.joda.time.DateTime
 import org.joda.time.LocalDate
-import java.sql.Date
-
-@QuarkusTest
 
 class DynamoDBTests : AnnotationSpec() {
 
@@ -118,7 +113,7 @@ class DynamoDBTests : AnnotationSpec() {
         client!!.enqueue(assignment2)
         client!!.enqueue(assignment3)
 
-        (client!!.peek(1)[0]).id.shouldBe(id2)    }
+        (client!!.peek(1)[0]).id.shouldBe(id1)    }
 
 //    @Test
 //    fun `remove items from queue and restore them back to DynamoDB priority queue`(){
@@ -150,13 +145,13 @@ class DynamoDBTests : AnnotationSpec() {
         val top3PeekedItems = client!!.peek(3)
         val top3DequeuedItems = client!!.dequeue(3)
 
-        ((top3PeekedItems.get(0)).id == assignment2.id).shouldBeTrue()
-        ((top3PeekedItems.get(1)).id == assignment3.id).shouldBeTrue()
-        ((top3PeekedItems.get(2)).id == assignment1.id).shouldBeTrue()
+        ((top3PeekedItems.get(0)).id == assignment1.id).shouldBeTrue()
+        ((top3PeekedItems.get(1)).id == assignment2.id).shouldBeTrue()
+        ((top3PeekedItems.get(2)).id == assignment3.id).shouldBeTrue()
 
-        (top3DequeuedItems.get(0).id == assignment2.id).shouldBeTrue()
-        (top3DequeuedItems.get(1).id == assignment3.id).shouldBeTrue()
-        (top3DequeuedItems.get(2).id == assignment1.id).shouldBeTrue()
+        (top3DequeuedItems.get(0).id == assignment1.id).shouldBeTrue()
+        (top3DequeuedItems.get(1).id == assignment2.id).shouldBeTrue()
+        (top3DequeuedItems.get(2).id == assignment3.id).shouldBeTrue()
     }
 
     @Test

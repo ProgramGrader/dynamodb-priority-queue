@@ -1,8 +1,8 @@
-package com.awsblog.queueing.appdata
+package bbs.priorityqueue.appdata
 
 import com.amazonaws.services.dynamodbv2.datamodeling.*
-import com.awsblog.queueing.model.SystemInfo
-import com.awsblog.queueing.utils.Utils
+import bbs.priorityqueue.model.SystemInfo
+import bbs.priorityqueue.utils.Utils
 import com.fasterxml.jackson.annotation.JsonInclude
 import com.fasterxml.jackson.annotation.JsonProperty
 import org.joda.time.DateTime
