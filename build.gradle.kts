@@ -19,14 +19,19 @@ plugins {
 
 repositories {
     mavenCentral()
+    mavenLocal()
 }
 
+
+
 publishing {
-    publications {
-        create<MavenPublication>("default") {
-            from(components["kotlin"])
-        }
-    }
+    //publications {
+//        create<MavenPublication>("default") {
+//          //  from(components["kotlin"])
+//
+//            artifact(sourceSets.get())
+//        }
+    //}
 
     repositories {
         maven {
