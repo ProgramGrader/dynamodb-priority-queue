@@ -22,7 +22,7 @@ jobs:
 
       - name: Make gradlew executable
         run: chmod +x ./gradlew
-        
+
       - name: Setup build cache # helps publishing take less time
         uses: actions/cache@v3.0.2
         with:
