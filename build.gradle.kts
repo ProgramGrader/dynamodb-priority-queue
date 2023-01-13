@@ -4,9 +4,9 @@
  * This project uses @Incubating APIs which are subject to change.
  */
 
-val quarkusPlatformGroupId ="io.quarkus.platform"
-val quarkusPlatformArtifactId = "quarkus-bom"
-val quarkusPlatformVersion = "2.12.2.Final"
+//val quarkusPlatformGroupId ="io.quarkus.platform"
+//val quarkusPlatformArtifactId = "quarkus-bom"
+//val quarkusPlatformVersion = "2.12.2.Final"
 
 plugins {
     //kotlin("jvm") version "1.7.10"
