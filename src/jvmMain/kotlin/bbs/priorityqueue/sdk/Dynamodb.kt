@@ -4,8 +4,8 @@ import com.amazonaws.ClientConfiguration
 import com.amazonaws.auth.*
 import com.amazonaws.auth.profile.ProfileCredentialsProvider
 import com.amazonaws.client.builder.AwsClientBuilder
-import com.amazonaws.retry.PredefinedRetryPolicies
-import com.amazonaws.retry.RetryPolicy
+//import com.amazonaws.retry.PredefinedRetryPolicies
+//import com.amazonaws.retry.RetryPolicy
 import com.amazonaws.services.dynamodbv2.AmazonDynamoDB
 import com.amazonaws.services.dynamodbv2.AmazonDynamoDBClientBuilder
 import com.amazonaws.services.dynamodbv2.datamodeling.DynamoDBMapper
@@ -69,10 +69,7 @@ class Dynamodb(builder: Builder) : Database {
         if (!Utils.checkIfNullObject(awsRegion)) builder.withRegion(awsRegion)
         dynamoDB = builder
             .withClientConfiguration(
-                ClientConfiguration().withMaxConnections(100).withConnectionTimeout(30000).withRetryPolicy(
-                    RETRY_POLICY
-                )
-            ).build()
+                ClientConfiguration().withMaxConnections(100).withConnectionTimeout(30000)).build()
 
         val mapperConfig = DynamoDBMapperConfig.builder()
             .withSaveBehavior(DynamoDBMapperConfig.SaveBehavior.CLOBBER)
@@ -300,7 +297,7 @@ class Dynamodb(builder: Builder) : Database {
                 return result
             }
 
-            // Assuming that his for loop gets the first value in the queryResult: which is the top
+            // this for loop gets the first value in the queryResult: which is the top
             var i = 0
             for (itemMap in queryResult.items) {
                 val sysMap = itemMap["system_info"]!!.m
@@ -556,8 +553,8 @@ class Dynamodb(builder: Builder) : Database {
         }
     }
 
-    companion object {
-        private val RETRY_POLICY =
-            RetryPolicy(null, PredefinedRetryPolicies.DYNAMODB_DEFAULT_BACKOFF_STRATEGY, 10, false)
-    }
+//    companion object {
+//        private val RETRY_POLICY =
+//            RetryPolicy(null, PredefinedRetryPolicies.DYNAMODB_DEFAULT_BACKOFF_STRATEGY, 10, false)
+//    }
 }

@@ -75,7 +75,7 @@ class PriorityQueueElement {
         if(!isIso){
             this.schedule=DateTime().withDate(LocalDate.parse(this.schedule)).toDateTimeISO().toString()
         }else{
-            LOG.info("Date is already of iso_format")
+            LOG.info( "Date is already of iso_format")
         }
 
     }
