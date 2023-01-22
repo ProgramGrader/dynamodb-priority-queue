@@ -27,6 +27,7 @@ import bbs.priorityqueue.model.ReturnStatusEnum
 import bbs.priorityqueue.model.SystemInfo
 import bbs.priorityqueue.utils.Utils
 import java.math.BigDecimal
+import java.security.SecureRandom
 import java.time.OffsetDateTime
 import java.time.ZoneOffset
 import java.util.*
@@ -66,10 +67,21 @@ class Dynamodb(builder: Builder) : Database {
                 credentials
             )
         )
+
+        // Creates a new instance of secure random everytime Dynamodb is instantiated
+        // Fix? to Random/SplittableRandom being stored in heap when library is being compiled for a native-image
+
+        val secureRandom : SecureRandom = SecureRandom()
+        secureRandom.generateSeed(32)
+
         if (!Utils.checkIfNullObject(awsRegion)) builder.withRegion(awsRegion)
         dynamoDB = builder
             .withClientConfiguration(
-                ClientConfiguration().withMaxConnections(100).withConnectionTimeout(30000)).build()
+                ClientConfiguration()
+                    .withMaxConnections(100)
+                    .withConnectionTimeout(30000)
+                    .withSecureRandom(secureRandom))
+            .build()
 
         val mapperConfig = DynamoDBMapperConfig.builder()
             .withSaveBehavior(DynamoDBMapperConfig.SaveBehavior.CLOBBER)
