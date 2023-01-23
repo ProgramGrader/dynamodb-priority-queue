@@ -1,24 +1,24 @@
 package bbs.priorityqueue.sdk
 
-import com.amazonaws.ClientConfiguration
-import com.amazonaws.auth.*
-import com.amazonaws.auth.profile.ProfileCredentialsProvider
-import com.amazonaws.client.builder.AwsClientBuilder
 //import com.amazonaws.retry.PredefinedRetryPolicies
 //import com.amazonaws.retry.RetryPolicy
-import com.amazonaws.services.dynamodbv2.AmazonDynamoDB
-import com.amazonaws.services.dynamodbv2.AmazonDynamoDBClientBuilder
-import com.amazonaws.services.dynamodbv2.datamodeling.DynamoDBMapper
-import com.amazonaws.services.dynamodbv2.datamodeling.DynamoDBMapperConfig
-import com.amazonaws.services.dynamodbv2.datamodeling.DynamoDBMapperConfig.TableNameOverride
-import com.amazonaws.services.dynamodbv2.document.DynamoDB
-import com.amazonaws.services.dynamodbv2.document.UpdateItemOutcome
-import com.amazonaws.services.dynamodbv2.document.spec.UpdateItemSpec
-import com.amazonaws.services.dynamodbv2.document.utils.NameMap
-import com.amazonaws.services.dynamodbv2.document.utils.ValueMap
-import com.amazonaws.services.dynamodbv2.model.AttributeValue
-import com.amazonaws.services.dynamodbv2.model.QueryRequest
-import com.amazonaws.services.dynamodbv2.model.ReturnValue
+
+
+//import com.amazonaws.services.dynamodbv2.AmazonDynamoDB
+//import com.amazonaws.services.dynamodbv2.AmazonDynamoDBClientBuilder
+//import com.amazonaws.services.dynamodbv2.datamodeling.DynamoDBMapper
+//import com.amazonaws.services.dynamodbv2.datamodeling.DynamoDBMapperConfig
+//import com.amazonaws.services.dynamodbv2.datamodeling.DynamoDBMapperConfig.TableNameOverride
+//import com.amazonaws.services.dynamodbv2.document.DynamoDB
+//import com.amazonaws.services.dynamodbv2.document.UpdateItemOutcome
+//import com.amazonaws.services.dynamodbv2.document.spec.UpdateItemSpec
+//import com.amazonaws.services.dynamodbv2.document.utils.NameMap
+//import com.amazonaws.services.dynamodbv2.document.utils.ValueMap
+//import com.amazonaws.services.dynamodbv2.model.AttributeValue
+//import com.amazonaws.services.dynamodbv2.model.QueryRequest
+//import com.amazonaws.services.dynamodbv2.model.ReturnValue
+
+
 import bbs.priorityqueue.Constants
 import bbs.priorityqueue.appdata.PriorityQueueElement
 import bbs.priorityqueue.model.QueueStats
@@ -26,92 +26,118 @@ import bbs.priorityqueue.model.ReturnResult
 import bbs.priorityqueue.model.ReturnStatusEnum
 import bbs.priorityqueue.model.SystemInfo
 import bbs.priorityqueue.utils.Utils
-import java.math.BigDecimal
-import java.security.SecureRandom
+import com.amazonaws.auth.*
+import software.amazon.awssdk.auth.credentials.ProfileCredentialsProvider
+import software.amazon.awssdk.enhanced.dynamodb.DynamoDbEnhancedClient
+import software.amazon.awssdk.enhanced.dynamodb.DynamoDbTable
+import software.amazon.awssdk.enhanced.dynamodb.Key
+import software.amazon.awssdk.enhanced.dynamodb.TableSchema
+import software.amazon.awssdk.enhanced.dynamodb.model.GetItemEnhancedRequest
+import software.amazon.awssdk.enhanced.dynamodb.model.UpdateItemEnhancedRequest
+import software.amazon.awssdk.regions.Region
+import software.amazon.awssdk.services.dynamodb.DynamoDbClient
+import software.amazon.awssdk.services.dynamodb.model.AttributeValue
+import software.amazon.awssdk.services.dynamodb.model.QueryRequest
+import software.amazon.awssdk.services.dynamodb.model.ReturnValue
+import software.amazon.awssdk.services.dynamodb.model.UpdateItemRequest
+import software.amazon.awssdk.services.dynamodb.model.UpdateItemResponse
+import java.net.URI
 import java.time.OffsetDateTime
 import java.time.ZoneOffset
 import java.util.*
 
 
 class Dynamodb(builder: Builder) : Database {
-    private var credentials: AWSCredentials?
+    private var credentialProvider: ProfileCredentialsProvider?
+
     var tableName: String?
-    var awsRegion: String?
+    var awsRegion: Region?
     var awsCredentialsProfileName: String?
-    var dbMapper: DynamoDBMapper? = null
-    var dynamoDB: AmazonDynamoDB? = null
+    var dbMapper: DynamoDbTable<PriorityQueueElement>? = null
+    var dynamoDB: DynamoDbClient? = null
+    var dynamoDBEnhanced: DynamoDbEnhancedClient? = null
 
     init {
         tableName = builder.tableName
         awsRegion = builder.awsRegion
-        credentials = builder.credentials
         awsCredentialsProfileName = builder.awsCredentialsProfileName
+        credentialProvider = ProfileCredentialsProvider.create(awsCredentialsProfileName)
     }
 
     override fun initialize() : Database {
         Locale.setDefault(Locale.ENGLISH)
-        var accessKey = System.getenv("AWS_ACCESS_KEY_ID")
-        var secretKey = System.getenv("AWS_SECRET_ACCESS_KEY")
+//        var accessKey = System.getenv("AWS_ACCESS_KEY_ID")
+//        var secretKey = System.getenv("AWS_SECRET_ACCESS_KEY")
+//
+//        // If the aws credentials aren't given via cli then checks Environment variables
+//        if (Utils.checkIfNotNullAndNotEmptyString(accessKey) && Utils.checkIfNotNullAndNotEmptyString(secretKey)) {
+//            if (Utils.checkIfNullOrEmptyString(accessKey)) accessKey = System.getenv("AWS_ACCESS_KEY_ID")
+//            if (Utils.checkIfNullOrEmptyString(secretKey)) secretKey = System.getenv("AWS_SECRET_ACCESS_KEY")
+//            credentials = BasicAWSCredentials(accessKey, secretKey)
+//        } else if (Utils.checkIfNotNullAndNotEmptyString(awsCredentialsProfileName)) {
+//          !!//(awsCredentialsProfileName).credentials
+//        }
 
-        // If the aws credentials aren't given via cli then checks Environment variables
-        if (Utils.checkIfNotNullAndNotEmptyString(accessKey) && Utils.checkIfNotNullAndNotEmptyString(secretKey)) {
-            if (Utils.checkIfNullOrEmptyString(accessKey)) accessKey = System.getenv("AWS_ACCESS_KEY_ID")
-            if (Utils.checkIfNullOrEmptyString(secretKey)) secretKey = System.getenv("AWS_SECRET_ACCESS_KEY")
-            credentials = BasicAWSCredentials(accessKey, secretKey)
-        } else if (Utils.checkIfNotNullAndNotEmptyString(awsCredentialsProfileName)) {
-            credentials = ProfileCredentialsProvider(awsCredentialsProfileName).credentials
-        }
-        val builder = AmazonDynamoDBClientBuilder.standard()
-        if (!Utils.checkIfNullObject(credentials)) builder.withCredentials(
-            AWSStaticCredentialsProvider(
-                credentials
-            )
-        )
-
+       // val credentialProvider: ProfileCredentialsProvider=  ProfileCredentialsProvider.create(awsCredentialsProfileName
         // Creates a new instance of secure random everytime Dynamodb is instantiated
         // Fix? to Random/SplittableRandom being stored in heap when library is being compiled for a native-image
 
-        val secureRandom : SecureRandom = SecureRandom()
-        secureRandom.generateSeed(32)
-
-        if (!Utils.checkIfNullObject(awsRegion)) builder.withRegion(awsRegion)
-        dynamoDB = builder
-            .withClientConfiguration(
-                ClientConfiguration()
-                    .withMaxConnections(100)
-                    .withConnectionTimeout(30000)
-                    .withSecureRandom(secureRandom))
+        dynamoDB =DynamoDbClient.builder()
+            .credentialsProvider(credentialProvider)
+            .region(awsRegion)
             .build()
 
-        val mapperConfig = DynamoDBMapperConfig.builder()
-            .withSaveBehavior(DynamoDBMapperConfig.SaveBehavior.CLOBBER)
-            .withConsistentReads(DynamoDBMapperConfig.ConsistentReads.CONSISTENT) //.withConsistentReads(DynamoDBMapperConfig.ConsistentReads.EVENTUAL)
-            .withTableNameOverride(TableNameOverride(tableName))
-            .withPaginationLoadingStrategy(DynamoDBMapperConfig.PaginationLoadingStrategy.EAGER_LOADING)
+
+
+        dynamoDBEnhanced = DynamoDbEnhancedClient.builder()
+            .dynamoDbClient(dynamoDB)
             .build()
-        dbMapper = DynamoDBMapper(dynamoDB, mapperConfig)
+
+
+
+//            .clientconfiguration(
+//                ClientConfiguration()
+//                    .withMaxConnections(100)
+//                    .withConnectionTimeout(30000)
+//                    .withSecureRandom(secureRandom))
+
+
+//        val mapperConfig = DynamoDBMapperConfig.builder()
+//            .withSaveBehavior(DynamoDBMapperConfig.SaveBehavior.CLOBBER)
+//            .withConsistentReads(DynamoDBMapperConfig.ConsistentReads.CONSISTENT) //.withConsistentReads(DynamoDBMapperConfig.ConsistentReads.EVENTUAL)
+//            .withTableNameOverride(TableNameOverride(tableName))
+//            .withPaginationLoadingStrategy(DynamoDBMapperConfig.PaginationLoadingStrategy.EAGER_LOADING)
+//            .build()
+
+        dbMapper = dynamoDBEnhanced?.table(tableName, TableSchema.fromBean(PriorityQueueElement::class.java))
         return this
     }
 
 
     // Function made for testing sdk locally
-    fun initialize(endpoint: AwsClientBuilder.EndpointConfiguration): Dynamodb {
+    fun initialize(endpoint: URI): Dynamodb {
         Locale.setDefault(Locale.ENGLISH)
-        val builder = AmazonDynamoDBClientBuilder.standard()
-        val credentialsProvide: AWSCredentialsProvider = DefaultAWSCredentialsProviderChain()
-        builder.credentials = credentialsProvide
 
         // initializes instance at endpoint.
-        builder.setEndpointConfiguration(endpoint)
-        dynamoDB = builder.build()
+        dynamoDB = DynamoDbClient.builder()
+            .credentialsProvider(credentialProvider)
+            .region(awsRegion)
+            .endpointOverride(endpoint)
+            .build()
 
+        dynamoDBEnhanced = DynamoDbEnhancedClient.builder()
+            .dynamoDbClient(dynamoDB)
+            .build()
 
-        dbMapper = DynamoDBMapper(dynamoDB) // , mapperConfig
+        dbMapper =dynamoDBEnhanced?.table(tableName, TableSchema.fromBean(PriorityQueueElement::class.java)) // , mapperConfig
         return this
     }
 
-    override fun get(id: String?) : PriorityQueueElement?{
-       return dbMapper!!.load(PriorityQueueElement::class.java, id?.trim { it <= ' ' })
+    override fun get(id: String?) : PriorityQueueElement? {
+
+        val key:Key = Key.builder().partitionValue(id).build()
+        return dbMapper?.getItem { requestBuilder: GetItemEnhancedRequest.Builder -> requestBuilder.key(key) }
+
     }
 
     override fun put(item: PriorityQueueElement) {
@@ -119,9 +145,10 @@ class Dynamodb(builder: Builder) : Database {
         val accessed = 0
 
         // check if already present
-        val retrievedItem = dbMapper!!.load(PriorityQueueElement::class.java, item.id)
+        val key:Key = Key.builder().partitionValue(item.id).build()
+        val retrievedItem = dbMapper!!.getItem { requestBuilder: GetItemEnhancedRequest.Builder -> requestBuilder.key(key) }
         if (!Utils.checkIfNullObject(retrievedItem)) {
-            dbMapper!!.delete(retrievedItem)
+            dbMapper!!.deleteItem(retrievedItem)
         }
 
         val odt = OffsetDateTime.now(ZoneOffset.UTC)
@@ -132,12 +159,12 @@ class Dynamodb(builder: Builder) : Database {
         item.systemInfo = system
 
         // store it in DynamoDB
-        dbMapper!!.save(item)
+        dbMapper!!.putItem(item)
     }
 
     override fun delete(id: String) {
         Utils.throwIfNullOrEmptyString(id, "DatabaseItem ID cannot be NULL!")
-        dbMapper!!.delete(PriorityQueueElement(id))
+        dbMapper!!.deleteItem(PriorityQueueElement(id))
     }
 
     // currently unnecessary but may be useful down the road
@@ -244,25 +271,28 @@ class Dynamodb(builder: Builder) : Database {
         var exclusiveStartKey: Map<String?, AttributeValue?>? = null
         val result = ReturnResult()
         val values: MutableMap<String, AttributeValue> = HashMap()
-        values[":one"] = AttributeValue().withN("1")
-        values[":id"] = AttributeValue().withS(id)
+        values[":one"] = AttributeValue.fromN("1")
+        values[":id"] = AttributeValue.fromS(id)
         var selectedID: String? = null
 
         // this query grabs everything in sparse index, in other words all values with queued = 1
-        val queryRequest = QueryRequest()
-            .withProjectionExpression("id, schedule, system_info")
-            .withIndexName(Constants.QUEUEING_INDEX_NAME)
-            .withTableName(tableName)
-            .withKeyConditionExpression("queued = :one")
-            .withFilterExpression("id = :id")
-            .withLimit(250)
-            .withScanIndexForward(true)
-            .withExpressionAttributeValues(values)
-        queryRequest.withExclusiveStartKey(exclusiveStartKey)
-        val queryResult = dynamoDB!!.query(queryRequest)
-        exclusiveStartKey = queryResult.lastEvaluatedKey
+        val queryRequest = QueryRequest.builder()
+            .projectionExpression("id, schedule, system_info")
+            .indexName(Constants.QUEUEING_INDEX_NAME)
+            .tableName(tableName)
+            .keyConditionExpression("queued = :one")
+            .filterExpression("id = :id")
+            .limit(250)
+            .scanIndexForward(true)
+            .expressionAttributeValues(values)
+            .exclusiveStartKey(exclusiveStartKey)
+            .tableName(tableName)
+            .build()
 
-        selectedID = queryResult.items[0]["id"]!!.s
+        val queryResult = dynamoDB?.query(queryRequest)
+        exclusiveStartKey = queryResult?.lastEvaluatedKey()
+
+        selectedID = queryResult?.items()?.get(0)?.get("id")!!.s()
 
         if( (selectedID != id && exclusiveStartKey != null)){
             result.returnValue = ReturnStatusEnum.FAILED_ID_NOT_FOUND
@@ -283,7 +313,7 @@ class Dynamodb(builder: Builder) : Database {
         var exclusiveStartKey: Map<String?, AttributeValue?>? = null
         val result = emptyList<PriorityQueueElement>().toMutableList()
         val values: MutableMap<String, AttributeValue> = HashMap()
-        values[":one"] = AttributeValue().withN("1")
+        values[":one"] = AttributeValue.fromN("1")
         var selectedID: String? = null
         val selectIDLIst = emptyList<String?>().toMutableList()
         var selectedaccessed = 0
@@ -291,30 +321,32 @@ class Dynamodb(builder: Builder) : Database {
         do {
 
             // this query grabs everything in sparse index, in other words all values with queued = 1
-            val queryRequest = QueryRequest()
-                .withProjectionExpression("id, schedule, system_info")
-                .withIndexName(Constants.QUEUEING_INDEX_NAME)
-                .withTableName(tableName)
-                .withKeyConditionExpression("queued = :one")
-                .withLimit(250)
-                .withScanIndexForward(true)
-                .withExpressionAttributeValues(values)
-            queryRequest.withExclusiveStartKey(exclusiveStartKey)
+            val queryRequest = QueryRequest.builder()
+                .projectionExpression("id, schedule, system_info")
+                .indexName(Constants.QUEUEING_INDEX_NAME)
+                .tableName(tableName)
+                .keyConditionExpression("queued = :one")
+                .limit(250)
+                .scanIndexForward(true)
+                .expressionAttributeValues(values)
+                .exclusiveStartKey(exclusiveStartKey)
+                .tableName(tableName)
+                .build()
             val queryResult = dynamoDB!!.query(queryRequest)
-            exclusiveStartKey = queryResult.lastEvaluatedKey
+            exclusiveStartKey = queryResult.lastEvaluatedKey()
 
-            if(n > queryResult.items.size){
-                System.err.println("peek() - number of items in queue are " + queryResult.items.size +
+            if(n > queryResult.items().size){
+                System.err.println("peek() - number of items in queue are " + queryResult.items().size +
                         " number of items to peek is exceeding this value ("+ n +")"+tableName)
                 return result
             }
 
             // this for loop gets the first value in the queryResult: which is the top
             var i = 0
-            for (itemMap in queryResult.items) {
-                val sysMap = itemMap["system_info"]!!.m
-                selectedID = itemMap["id"]!!.s
-                selectedaccessed = sysMap["accessed"]!!.n.toInt()
+            for (itemMap in queryResult.items()) {
+                val sysMap = itemMap["system_info"]!!.m()
+                selectedID = itemMap["id"]!!.s()
+                selectedaccessed = sysMap["accessed"]!!.n().toInt()
 
                 i++
                 selectIDLIst.add(selectedID)
@@ -337,50 +369,58 @@ class Dynamodb(builder: Builder) : Database {
         }
 
         val odt = OffsetDateTime.now(ZoneOffset.UTC)
-        val ddb = DynamoDB(dynamoDB)
-        val table = ddb.getTable(tableName)
+//        val ddb = Duj(dynamoDB)
+      //  val table = dbMapper?.
         val tsUTC = System.currentTimeMillis()
-        var outcome: UpdateItemOutcome? = null
+        var outcome: UpdateItemResponse? = null
 
         try {
-            // This query is just adding +1 to the accessed to denote that the item was touched in the system
 
-            for( id in selectIDLIst) {
-                val updateItemSpec = UpdateItemSpec().withPrimaryKey("id", id)
-                    .withUpdateExpression(
+            val attributeNameMap :MutableMap<String, String> = mutableMapOf<String, String>()
+                attributeNameMap.set("#v", "accessed")
+                attributeNameMap.set("#sys", "system_info")
+
+            val attributeValueMap :MutableMap<String, AttributeValue> = mutableMapOf<String, AttributeValue>()
+                attributeValueMap.set(":one", AttributeValue.fromN("1"))
+                attributeValueMap.set(":v", AttributeValue.fromN(selectedaccessed.toString()))
+                attributeValueMap.set(":ts", AttributeValue.fromN(tsUTC.toString()) )
+                attributeValueMap.set(":lut",AttributeValue.fromS(odt.toString()))
+
+            for (id in selectIDLIst) {
+                val keyMap :MutableMap<String, AttributeValue> = mutableMapOf<String, AttributeValue>()
+                keyMap.set("id", AttributeValue.fromS(id))
+
+                // This query is just adding +1 to the accessed to denote that the item was touched in the system\
+
+                val updateItemSpec = UpdateItemRequest.builder()
+                    .key(keyMap)
+                    .updateExpression(
                         "ADD #sys.#v :one "
                                 + "SET queued = :one, #sys.queued = :one,"
                                 + " #sys.last_updated_timestamp = :lut, #sys.queue_peek_timestamp = :lut, "
                                 + "#sys.peek_utc_timestamp = :ts"
                     )
-                    .withNameMap(
-                        NameMap()
-                            .with("#v", "accessed") //.with("#st", "status")
-                            .with("#sys", "system_info")
-                    )
-                    .withValueMap(
-                        ValueMap()
-                            .withInt(":one", 1)
-                            .withInt(":v", selectedaccessed)
-                            .withLong(":ts", tsUTC)
-                            .withString(":lut", odt.toString())
-                    )
-                    .withConditionExpression("#sys.#v = :v")
-                    .withReturnValues(ReturnValue.ALL_NEW)
-                outcome = table.updateItem(updateItemSpec)
+                    .expressionAttributeNames(attributeNameMap)
+                    .expressionAttributeValues(attributeValueMap)
+                    .conditionExpression("#sys.#v = :v")
+                    .returnValues(ReturnValue.ALL_NEW)
+                    .tableName(tableName)
+                    .build()
+
+                outcome = dynamoDB!!.updateItem(updateItemSpec)
+
             }
-        } catch (e: Exception) {
-            System.err.println("peek() - failed to update multiple attributes in " + tableName)
-            System.err.println(e.message)
-            return result
-        }
+        }catch (e: Exception) {
+                System.err.println("peek() - failed to update multiple attributes in " + tableName)
+                System.err.println(e.message)
+                return result
+            }
 
         return result
     }
 
 
     override fun enqueue(item: PriorityQueueElement?): ReturnResult {
-
 
         val result = ReturnResult(item?.id)
         val it = this[item?.id]
@@ -398,41 +438,47 @@ class Dynamodb(builder: Builder) : Database {
             return result
         }
         val accessed = retrievedItem?.systemInfo?.accessed
-        val ddb = DynamoDB(dynamoDB)
-        val table = ddb.getTable(tableName)
+//        val ddb = DynamoDB(dynamoDB)
+       // val table = ddb.getTable(tableName)
         if (accessed != null) {
             result.accessed = accessed
         }
         result.lastUpdatedTimestamp = retrievedItem?.systemInfo?.lastUpdatedTimestamp
         val odt = OffsetDateTime.now(ZoneOffset.UTC)
+
+        val attributeNameMap :MutableMap<String, String> = mutableMapOf<String, String>()
+            attributeNameMap.set("#v", "accessed")
+            attributeNameMap.set("#sys", "system_info")
+
+        val attributeValueMap :MutableMap<String, AttributeValue> = mutableMapOf<String, AttributeValue>()
+            attributeValueMap.set(":one", AttributeValue.fromN("1"))
+            attributeValueMap.set(":v", AttributeValue.fromN(accessed.toString()))
+            attributeValueMap.set(":lut",AttributeValue.fromS(odt.toString()))
         try {
-            val updateItemSpec = UpdateItemSpec().withPrimaryKey("id", item?.id)
-                .withUpdateExpression(
+            val keyMap :MutableMap<String, AttributeValue> = mutableMapOf<String, AttributeValue>()
+            keyMap["id"] = AttributeValue.fromS(item?.id)
+
+            val updateItemSpec = UpdateItemRequest.builder()
+                .key(keyMap)
+                .updateExpression(
                     "ADD #sys.#v :one "
                             + "SET queued = :one, #sys.queued = :one,"
                             + "#sys.last_updated_timestamp = :lut, "
                             + "#sys.queue_added_timestamp = :lut"
                 )
-                .withNameMap(
-                    NameMap()
-                        .with("#v", "accessed")
-                        .with("#sys", "system_info")
-                )
-                .withValueMap(
-                    accessed?.let {
-                        ValueMap()
-                            .withInt(":one", 1)
-                            .withInt(":v", it)
-                            .withString(":lut", odt.toString())
-                    }
-                )
-                .withConditionExpression("#sys.#v = :v")
-                .withReturnValues(ReturnValue.ALL_NEW)
-            val outcome = table.updateItem(updateItemSpec)
-            val sysMap = outcome.item.getRawMap("system_info")
-            result.accessed = (sysMap["accessed"] as BigDecimal?)!!.toInt()
-            result.lastUpdatedTimestamp = sysMap["last_updated_timestamp"] as String?
+                .expressionAttributeNames(attributeNameMap)
+                .expressionAttributeValues(attributeValueMap)
+                .conditionExpression("#sys.#v = :v")
+                .returnValues(ReturnValue.ALL_NEW)
+                .tableName(tableName)
+                .build()
+
+            val outcome = dynamoDB!!.updateItem(updateItemSpec)
+
+            //val sysMap = outcome.getValueForField("system_info", SystemInfo::class.java)
             val updatedItem = this[item?.id]
+            result.accessed= updatedItem?.systemInfo?.accessed!!
+            result.lastUpdatedTimestamp= updatedItem?.systemInfo?.lastUpdatedTimestamp!!
             result.resultObject = updatedItem
         } catch (e: Exception) {
             System.err.println("enqueue() - failed to update multiple attributes in " + tableName)
@@ -469,31 +515,33 @@ class Dynamodb(builder: Builder) : Database {
         val names: MutableMap<String, String> = HashMap()
         names["#q"] = "queued"
         val values: MutableMap<String, AttributeValue> = HashMap()
-        values[":one"] = AttributeValue().withN("1")
+        values[":one"] = AttributeValue.fromN("1")    //withN("1")
 
 
         val allQueueIDs: List<String> = ArrayList()
         val processingIDs: List<String> = ArrayList()
 
         do {
-            val queryRequest = QueryRequest()
-                .withProjectionExpression("id, system_info")
-                .withIndexName(Constants.QUEUEING_INDEX_NAME)
-                .withTableName(tableName)
-                .withExpressionAttributeNames(names)
-                .withKeyConditionExpression("#q = :one")
-                .withScanIndexForward(true)
-                .withLimit(250)
-                .withExpressionAttributeValues(values)
+            val queryRequest = QueryRequest.builder()
+                .projectionExpression("id, system_info")
+                .indexName(Constants.QUEUEING_INDEX_NAME)
+                .tableName(tableName)
+                .expressionAttributeNames(names)
+                .keyConditionExpression("#q = :one")
+                .scanIndexForward(true)
+                .limit(250)
+                .expressionAttributeValues(values)
+                .exclusiveStartKey(exclusiveStartKey)
+                .tableName(tableName)
+                .build()
 
             // exclusive start key is just a structure containing the keys needed to resume the query and grab the next n items
-            queryRequest.withExclusiveStartKey(exclusiveStartKey)
             val queryResult = dynamoDB!!.query(queryRequest)
-            exclusiveStartKey = queryResult.lastEvaluatedKey
-            for (itemMap in queryResult.items) {
+            exclusiveStartKey = queryResult.lastEvaluatedKey()
+            for (itemMap in queryResult.items()) {
                 ++totalQueueSize
             }
-        } while (exclusiveStartKey != null)
+        } while (exclusiveStartKey != null && queryResult.lastEvaluatedKey().isNotEmpty())
 
         val result = QueueStats()
 
@@ -510,9 +558,8 @@ class Dynamodb(builder: Builder) : Database {
      * Default constructor
      */
     {
-        var credentials: AWSCredentials? = null
         var tableName: String? = null
-        var awsRegion: String? = null
+        var awsRegion: Region? = null
         var awsCredentialsProfileName: String? = null
         private var client: Dynamodb? = null
 
@@ -528,7 +575,7 @@ class Dynamodb(builder: Builder) : Database {
             }
             return client
         }
-        fun build(endpoint: AwsClientBuilder.EndpointConfiguration ): Dynamodb? {
+        fun build(endpoint:URI ): Dynamodb? {
             if (Utils.checkIfNullObject(client)) {
                 client = Dynamodb(this)
                 client!!.initialize(endpoint)
@@ -543,7 +590,7 @@ class Dynamodb(builder: Builder) : Database {
          * @param region Proper AWS Region string
          * @return Builder
          */
-        fun withRegion(region: String?): Builder {
+        fun withRegion(region: Region?): Builder {
             awsRegion = region
             return this
         }

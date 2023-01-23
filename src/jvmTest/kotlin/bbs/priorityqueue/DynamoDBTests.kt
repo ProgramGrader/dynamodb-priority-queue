@@ -12,12 +12,14 @@ import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import org.joda.time.DateTime
 import org.joda.time.LocalDate
+import software.amazon.awssdk.regions.Region
+import java.net.URI
 
 class DynamoDBTests : AnnotationSpec() {
 
-    private final val endpoint = EndpointConfiguration("http://localhost:4566/", "local")
+    private final val endpoint = URI.create("http://localhost:4566/")
     val client: Database? = Dynamodb.Builder()
-        .withRegion("us-east-2")
+        .withRegion(Region.US_EAST_2)
         .withTableName("priority_queue_table")
         .build(endpoint)
 
@@ -43,15 +45,15 @@ class DynamoDBTests : AnnotationSpec() {
         assignment3.convertDateToIso()
 
         client!!.put(assignment1)
-        client!!.put(assignment2)
-        client!!.put(assignment3)
+        client.put(assignment2)
+        client.put(assignment3)
     }
 
     @After
     fun deleteItems(){
         client!!.delete(id1)
-        client!!.delete(id2)
-        client!!.delete(id3)
+        client.delete(id2)
+        client.delete(id3)
     }
 
     @Test
@@ -59,19 +61,19 @@ class DynamoDBTests : AnnotationSpec() {
 
         //get
         ( client!![id1])?.id.shouldBe(assignment1.id)
-        ( client!![id2])?.id.shouldBe(assignment2.id)
-        ( client!![id3])?.id.shouldBe(assignment3.id)
+        ( client[id2])?.id.shouldBe(assignment2.id)
+        ( client[id3])?.id.shouldBe(assignment3.id)
 
         //delete
-        client!!.delete(id1)
-        client!!.delete(id2)
-        client!!.delete(id3)
+        client.delete(id1)
+        client.delete(id2)
+        client.delete(id3)
 
-        val a = (client!![id1])
+        val a = (client[id1])
 
         a?.id.shouldBe(null)
-        (client!![id2])?.id.shouldBe(null)
-        (client!![id3])?.id.shouldBe(null)
+        (client[id2])?.id.shouldBe(null)
+        (client[id3])?.id.shouldBe(null)
 
     }
 
@@ -80,10 +82,10 @@ class DynamoDBTests : AnnotationSpec() {
     fun `enqueue items to Dynamodb priority queue`(){
 // currently attribute needs to be defined in database item for it to be enqueued not what we want :(
         client!!.enqueue(assignment1)
-        client!!.enqueue(assignment2)
-        client!!.enqueue(assignment3)
+        client.enqueue(assignment2)
+        client.enqueue(assignment3)
 
-        client!!.getQueueStats().totalRecordsInQueue.shouldBe(3)
+        client.getQueueStats().totalRecordsInQueue.shouldBe(3)
 
     }
 
@@ -92,10 +94,10 @@ class DynamoDBTests : AnnotationSpec() {
     fun `dequeue items from DynamoDB priority queue and assert correct order`() {
 
         client!!.enqueue(assignment1)
-        client!!.enqueue(assignment2)
-        client!!.enqueue(assignment3)
+        client.enqueue(assignment2)
+        client.enqueue(assignment3)
 
-        val dequeuedDatabaseItem = client!!.dequeue(3)
+        val dequeuedDatabaseItem = client.dequeue(3)
 
         val earliestDate = DateTime.parse((dequeuedDatabaseItem[0]).getSchedule())
         val midDate = DateTime.parse((dequeuedDatabaseItem[1]).getSchedule())
@@ -104,16 +106,17 @@ class DynamoDBTests : AnnotationSpec() {
         (earliestDate < midDate).shouldBeTrue()
         (earliestDate < latestDate).shouldBeTrue()
         (midDate < latestDate).shouldBeTrue()
-        client!!.getQueueStats().totalRecordsInQueue.shouldBe(0)
+        client.getQueueStats().totalRecordsInQueue.shouldBe(0)
     }
 
     @Test
     fun `peek top of DynamoDB priority queue and assert top value is earliest date`() {
         client!!.enqueue(assignment1)
-        client!!.enqueue(assignment2)
-        client!!.enqueue(assignment3)
+        client.enqueue(assignment2)
+        client.enqueue(assignment3)
 
-        (client!!.peek(1)[0]).id.shouldBe(id1)    }
+        (client.peek(1)[0]).id.shouldBe(id1)
+    }
 
 //    @Test
 //    fun `remove items from queue and restore them back to DynamoDB priority queue`(){
@@ -140,10 +143,10 @@ class DynamoDBTests : AnnotationSpec() {
     @Test
     fun `peek n items from queue and dequeuing n items `(){
         client!!.enqueue(assignment1)
-        client!!.enqueue(assignment2)
-        client!!.enqueue(assignment3)
-        val top3PeekedItems = client!!.peek(3)
-        val top3DequeuedItems = client!!.dequeue(3)
+        client.enqueue(assignment2)
+        client.enqueue(assignment3)
+        val top3PeekedItems = client.peek(3)
+        val top3DequeuedItems = client.dequeue(3)
 
         ((top3PeekedItems.get(0)).id == assignment1.id).shouldBeTrue()
         ((top3PeekedItems.get(1)).id == assignment2.id).shouldBeTrue()

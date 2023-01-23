@@ -1,10 +1,12 @@
 package bbs.priorityqueue.model
 
-import com.amazonaws.services.dynamodbv2.datamodeling.DynamoDBAttribute
-import com.amazonaws.services.dynamodbv2.datamodeling.DynamoDBDocument
 import com.fasterxml.jackson.annotation.JsonIgnore
 import com.fasterxml.jackson.annotation.JsonInclude
 import com.fasterxml.jackson.annotation.JsonProperty
+import software.amazon.awssdk.core.SdkField
+import software.amazon.awssdk.core.SdkResponse
+import software.amazon.awssdk.enhanced.dynamodb.mapper.annotations.DynamoDbAttribute
+import software.amazon.awssdk.enhanced.dynamodb.mapper.annotations.DynamoDbBean
 import java.time.OffsetDateTime
 import java.time.ZoneOffset
 
@@ -13,9 +15,11 @@ import java.time.ZoneOffset
  *
  * @author zorani
  */
+
+@DynamoDbBean
 @JsonInclude(JsonInclude.Include.NON_NULL)
-@DynamoDBDocument
-class SystemInfo {
+//@DynamoDBDocument
+class SystemInfo { // end SystemInfo
     /**
      * Default C-tor
      */
@@ -43,14 +47,14 @@ class SystemInfo {
      * The unique ID
      */
     // ------------------------ fields
-    @get:DynamoDBAttribute(attributeName = "id")
+    @get:DynamoDbAttribute("id")
     @get:JsonIgnore
     @JsonProperty("id")
     var id: String? = null
     /**
      * time of creation
      */
-    @get:DynamoDBAttribute(attributeName = "creation_timestamp")
+    @get:DynamoDbAttribute("creation_timestamp")
     @JsonProperty("creation_timestamp")
     var creationTimestamp: String? = null
 
@@ -58,7 +62,7 @@ class SystemInfo {
     /**
      * last time element was updated
      */
-    @get:DynamoDBAttribute(attributeName = "last_updated_timestamp")
+    @get:DynamoDbAttribute("last_updated_timestamp")
     @JsonProperty("last_updated_timestamp")
     var lastUpdatedTimestamp: String? = null
 
@@ -69,5 +73,4 @@ class SystemInfo {
     @JsonProperty("touched")
     var accessed = 0
 
-
-} // end SystemInfo
+}

@@ -1,6 +1,6 @@
 package bbs.priorityqueue.appdata
 
-import com.amazonaws.services.dynamodbv2.datamodeling.*
+import software.amazon.awssdk.enhanced.dynamodb.mapper.annotations.*
 import bbs.priorityqueue.model.SystemInfo
 import bbs.priorityqueue.utils.Utils
 import com.fasterxml.jackson.annotation.JsonInclude
@@ -10,11 +10,11 @@ import org.joda.time.LocalDate
 import java.util.logging.Logger
 
 @JsonInclude(JsonInclude.Include.NON_NULL)
-@DynamoDBTable(tableName = "priority_queue_table")
+@DynamoDbBean
 class PriorityQueueElement {
-    companion object {
-        val LOG = Logger.getLogger(PriorityQueueElement::class.java.name)
-    }
+//    companion object {
+//        val LOG = Logger.getLogger(PriorityQueueElement::class.java.name)
+//    }
     constructor()
     constructor(id: String?) {
         this.id = id
@@ -31,8 +31,8 @@ class PriorityQueueElement {
     /**
      * Hash key for the priority queue
      */
-    @get:DynamoDBAttribute(attributeName = "id")
-    @get:DynamoDBHashKey(attributeName = "id")
+    @get:DynamoDbAttribute("id")
+    @get:DynamoDbPartitionKey()
     @JsonProperty("id")
     var id: String? = null
 
@@ -43,7 +43,7 @@ class PriorityQueueElement {
     @JsonProperty("schedule")
     private var schedule: String? = null
 
-    @DynamoDBAttribute(attributeName = "schedule")
+    @DynamoDbAttribute("schedule")
     fun getSchedule(): String?{
         return this.schedule
     }
@@ -53,12 +53,12 @@ class PriorityQueueElement {
     }
 
 
-    @get:DynamoDBAttribute(attributeName = "system_info")
+    @get:DynamoDbAttribute("system_info")
     @JsonProperty("system_info")
     var systemInfo: SystemInfo? = null
 
 
-    @get:DynamoDBAttribute(attributeName = "data")
+    @get:DynamoDbAttribute("data")
     @JsonProperty("data")
     var data: String? = null
 
@@ -71,14 +71,9 @@ class PriorityQueueElement {
         }catch (e: java.time.DateTimeException){
             isIso = false
         }
-
         if(!isIso){
             this.schedule=DateTime().withDate(LocalDate.parse(this.schedule)).toDateTimeISO().toString()
-        }else{
-            LOG.info( "Date is already of iso_format")
         }
-
     }
-
 
 }
