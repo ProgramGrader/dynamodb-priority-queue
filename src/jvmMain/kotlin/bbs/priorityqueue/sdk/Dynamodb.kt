@@ -1,24 +1,5 @@
 package bbs.priorityqueue.sdk
 
-//import com.amazonaws.retry.PredefinedRetryPolicies
-//import com.amazonaws.retry.RetryPolicy
-
-
-//import com.amazonaws.services.dynamodbv2.AmazonDynamoDB
-//import com.amazonaws.services.dynamodbv2.AmazonDynamoDBClientBuilder
-//import com.amazonaws.services.dynamodbv2.datamodeling.DynamoDBMapper
-//import com.amazonaws.services.dynamodbv2.datamodeling.DynamoDBMapperConfig
-//import com.amazonaws.services.dynamodbv2.datamodeling.DynamoDBMapperConfig.TableNameOverride
-//import com.amazonaws.services.dynamodbv2.document.DynamoDB
-//import com.amazonaws.services.dynamodbv2.document.UpdateItemOutcome
-//import com.amazonaws.services.dynamodbv2.document.spec.UpdateItemSpec
-//import com.amazonaws.services.dynamodbv2.document.utils.NameMap
-//import com.amazonaws.services.dynamodbv2.document.utils.ValueMap
-//import com.amazonaws.services.dynamodbv2.model.AttributeValue
-//import com.amazonaws.services.dynamodbv2.model.QueryRequest
-//import com.amazonaws.services.dynamodbv2.model.ReturnValue
-
-
 import bbs.priorityqueue.Constants
 import bbs.priorityqueue.appdata.PriorityQueueElement
 import bbs.priorityqueue.model.QueueStats
@@ -26,14 +7,14 @@ import bbs.priorityqueue.model.ReturnResult
 import bbs.priorityqueue.model.ReturnStatusEnum
 import bbs.priorityqueue.model.SystemInfo
 import bbs.priorityqueue.utils.Utils
-import com.amazonaws.auth.*
+
 import software.amazon.awssdk.auth.credentials.ProfileCredentialsProvider
 import software.amazon.awssdk.enhanced.dynamodb.DynamoDbEnhancedClient
 import software.amazon.awssdk.enhanced.dynamodb.DynamoDbTable
 import software.amazon.awssdk.enhanced.dynamodb.Key
 import software.amazon.awssdk.enhanced.dynamodb.TableSchema
 import software.amazon.awssdk.enhanced.dynamodb.model.GetItemEnhancedRequest
-import software.amazon.awssdk.enhanced.dynamodb.model.UpdateItemEnhancedRequest
+
 import software.amazon.awssdk.regions.Region
 import software.amazon.awssdk.services.dynamodb.DynamoDbClient
 import software.amazon.awssdk.services.dynamodb.model.AttributeValue
@@ -66,48 +47,15 @@ class Dynamodb(builder: Builder) : Database {
 
     override fun initialize() : Database {
         Locale.setDefault(Locale.ENGLISH)
-//        var accessKey = System.getenv("AWS_ACCESS_KEY_ID")
-//        var secretKey = System.getenv("AWS_SECRET_ACCESS_KEY")
-//
-//        // If the aws credentials aren't given via cli then checks Environment variables
-//        if (Utils.checkIfNotNullAndNotEmptyString(accessKey) && Utils.checkIfNotNullAndNotEmptyString(secretKey)) {
-//            if (Utils.checkIfNullOrEmptyString(accessKey)) accessKey = System.getenv("AWS_ACCESS_KEY_ID")
-//            if (Utils.checkIfNullOrEmptyString(secretKey)) secretKey = System.getenv("AWS_SECRET_ACCESS_KEY")
-//            credentials = BasicAWSCredentials(accessKey, secretKey)
-//        } else if (Utils.checkIfNotNullAndNotEmptyString(awsCredentialsProfileName)) {
-//          !!//(awsCredentialsProfileName).credentials
-//        }
-
-       // val credentialProvider: ProfileCredentialsProvider=  ProfileCredentialsProvider.create(awsCredentialsProfileName
-        // Creates a new instance of secure random everytime Dynamodb is instantiated
-        // Fix? to Random/SplittableRandom being stored in heap when library is being compiled for a native-image
 
         dynamoDB =DynamoDbClient.builder()
             .credentialsProvider(credentialProvider)
             .region(awsRegion)
             .build()
 
-
-
         dynamoDBEnhanced = DynamoDbEnhancedClient.builder()
             .dynamoDbClient(dynamoDB)
             .build()
-
-
-
-//            .clientconfiguration(
-//                ClientConfiguration()
-//                    .withMaxConnections(100)
-//                    .withConnectionTimeout(30000)
-//                    .withSecureRandom(secureRandom))
-
-
-//        val mapperConfig = DynamoDBMapperConfig.builder()
-//            .withSaveBehavior(DynamoDBMapperConfig.SaveBehavior.CLOBBER)
-//            .withConsistentReads(DynamoDBMapperConfig.ConsistentReads.CONSISTENT) //.withConsistentReads(DynamoDBMapperConfig.ConsistentReads.EVENTUAL)
-//            .withTableNameOverride(TableNameOverride(tableName))
-//            .withPaginationLoadingStrategy(DynamoDBMapperConfig.PaginationLoadingStrategy.EAGER_LOADING)
-//            .build()
 
         dbMapper = dynamoDBEnhanced?.table(tableName, TableSchema.fromBean(PriorityQueueElement::class.java))
         return this

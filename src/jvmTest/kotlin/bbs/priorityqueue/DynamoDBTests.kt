@@ -1,6 +1,5 @@
 package bbs.priorityqueue
 
-import com.amazonaws.client.builder.AwsClientBuilder.EndpointConfiguration
 import bbs.priorityqueue.appdata.PriorityQueueElement
 import bbs.priorityqueue.sdk.Database
 import bbs.priorityqueue.sdk.Dynamodb
@@ -17,10 +16,11 @@ import java.net.URI
 
 class DynamoDBTests : AnnotationSpec() {
 
-    private final val endpoint = URI.create("http://localhost:4566/")
+    private val endpoint = URI.create("http://localhost:4566/")
     val client: Database? = Dynamodb.Builder()
         .withRegion(Region.US_EAST_2)
         .withTableName("priority_queue_table")
+        //.withCredentialsProfileName("default")
         .build(endpoint)
 
     // Data to Insert

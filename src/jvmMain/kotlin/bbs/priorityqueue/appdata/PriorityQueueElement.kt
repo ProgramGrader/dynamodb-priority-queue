@@ -7,7 +7,6 @@ import com.fasterxml.jackson.annotation.JsonInclude
 import com.fasterxml.jackson.annotation.JsonProperty
 import org.joda.time.DateTime
 import org.joda.time.LocalDate
-import java.util.logging.Logger
 
 @JsonInclude(JsonInclude.Include.NON_NULL)
 @DynamoDbBean
