@@ -20,8 +20,8 @@ class DynamoDBTests : AnnotationSpec() {
     val client: Database? = Dynamodb.Builder()
         .withRegion(Region.US_EAST_2)
         .withTableName("priority_queue_table")
-        //.withCredentialsProfileName("default")
-        .build(endpoint)
+        .withCredentialsProfileName("default")
+        .build()
 
     // Data to Insert
     final val id1 = "A-101"
