@@ -51,6 +51,7 @@ class Dynamodb(builder: Builder) : Database {
         dynamoDB =DynamoDbClient.builder()
             .credentialsProvider(credentialProvider)
             .region(awsRegion)
+            .httpClient(software.amazon.awssdk.http.urlconnection.UrlConnectionHttpClient.builder().build())
             .build()
 
         dynamoDBEnhanced = DynamoDbEnhancedClient.builder()

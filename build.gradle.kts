@@ -41,6 +41,8 @@ kotlin {
             useJUnitPlatform()
         }
     }
+
+    // TODO revert these back to dynamodb v2
     sourceSets {
         val jvmMain by getting{
             dependencies {
@@ -49,7 +51,7 @@ kotlin {
                 implementation("io.quarkiverse.amazonservices:quarkus-amazon-dynamodb-enhanced:1.4.0")
                 implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.4.1")
                 implementation("org.jetbrains.kotlin:kotlin-stdlib-jdk8")
-
+                implementation("software.amazon.awssdk:url-connection-client:2.19.19")
             }
         }
         val jvmTest by getting {
