@@ -3,8 +3,6 @@ package bbs.priorityqueue.model
 import com.fasterxml.jackson.annotation.JsonIgnore
 import com.fasterxml.jackson.annotation.JsonInclude
 import com.fasterxml.jackson.annotation.JsonProperty
-import software.amazon.awssdk.core.SdkField
-import software.amazon.awssdk.core.SdkResponse
 import software.amazon.awssdk.enhanced.dynamodb.mapper.annotations.DynamoDbAttribute
 import software.amazon.awssdk.enhanced.dynamodb.mapper.annotations.DynamoDbBean
 import java.time.OffsetDateTime

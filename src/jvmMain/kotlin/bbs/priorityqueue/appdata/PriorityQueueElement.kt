@@ -11,9 +11,7 @@ import org.joda.time.LocalDate
 @JsonInclude(JsonInclude.Include.NON_NULL)
 @DynamoDbBean
 class PriorityQueueElement {
-//    companion object {
-//        val LOG = Logger.getLogger(PriorityQueueElement::class.java.name)
-//    }
+
     constructor()
     constructor(id: String?) {
         this.id = id

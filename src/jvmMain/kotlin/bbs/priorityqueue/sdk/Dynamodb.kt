@@ -7,12 +7,8 @@ import bbs.priorityqueue.model.ReturnResult
 import bbs.priorityqueue.model.ReturnStatusEnum
 import bbs.priorityqueue.model.SystemInfo
 import bbs.priorityqueue.utils.Utils
-import com.amazonaws.http.apache.client.impl.ApacheHttpClientFactory
-import com.amazonaws.http.apache.client.impl.SdkHttpClient
-import io.netty.util.AttributeMap
 
 import software.amazon.awssdk.auth.credentials.ProfileCredentialsProvider
-import software.amazon.awssdk.core.internal.http.loader.DefaultSdkHttpClientBuilder
 import software.amazon.awssdk.enhanced.dynamodb.DynamoDbEnhancedClient
 import software.amazon.awssdk.enhanced.dynamodb.DynamoDbTable
 import software.amazon.awssdk.enhanced.dynamodb.Key
@@ -55,7 +51,6 @@ class Dynamodb(builder: Builder) : Database {
         dynamoDB =DynamoDbClient.builder()
             .credentialsProvider(credentialProvider)
             .region(awsRegion)
-            .httpClient(DefaultSdkHttpClientBuilder().build())
             .build()
 
         dynamoDBEnhanced = DynamoDbEnhancedClient.builder()
