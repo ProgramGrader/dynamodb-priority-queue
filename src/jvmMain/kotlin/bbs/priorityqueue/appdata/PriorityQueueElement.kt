@@ -10,14 +10,17 @@ import org.joda.time.LocalDate
 
 @JsonInclude(JsonInclude.Include.NON_NULL)
 @DynamoDbBean
-class PriorityQueueElement {
+class PriorityQueueElement() {
 
-    constructor()
-    constructor(id: String?) {
+    init {
+
+    }
+
+    constructor(id: String?) : this() {
         this.id = id
     }
 
-    constructor(id: String, date: LocalDate?) {
+    constructor(id: String, date: LocalDate?) : this() {
         Utils.throwIfNullOrEmptyString(id, "ID cannot be null!")
         this.id = id.trim { it <= ' ' }
         systemInfo = SystemInfo(this.id)
