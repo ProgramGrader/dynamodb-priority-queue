@@ -41,8 +41,7 @@ kotlin {
             useJUnitPlatform()
         }
     }
-
-    // TODO revert these back to dynamodb v2
+    
     sourceSets {
         val jvmMain by getting{
             dependencies {
