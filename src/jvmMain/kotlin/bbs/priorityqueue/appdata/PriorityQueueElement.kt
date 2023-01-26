@@ -10,17 +10,14 @@ import org.joda.time.LocalDate
 
 @JsonInclude(JsonInclude.Include.NON_NULL)
 @DynamoDbBean
-class PriorityQueueElement() {
+class PriorityQueueElement{
 
-    init {
-
-    }
-
-    constructor(id: String?) : this() {
+    constructor()
+    constructor(id: String?) {
         this.id = id
     }
 
-    constructor(id: String, date: LocalDate?) : this() {
+    constructor(id: String, date: LocalDate?) {
         Utils.throwIfNullOrEmptyString(id, "ID cannot be null!")
         this.id = id.trim { it <= ' ' }
         systemInfo = SystemInfo(this.id)
@@ -60,7 +57,7 @@ class PriorityQueueElement() {
 
     @get:DynamoDbAttribute("data")
     @JsonProperty("data")
-    var data: String? = null
+     var data: String? = null
 
     fun convertDateToIso(){
 
@@ -74,6 +71,12 @@ class PriorityQueueElement() {
         if(!isIso){
             this.schedule=DateTime().withDate(LocalDate.parse(this.schedule)).toDateTimeISO().toString()
         }
+    }
+
+    init {
+        id = null
+        schedule = null
+        data = null
     }
 
 }

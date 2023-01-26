@@ -41,7 +41,9 @@ kotlin {
             useJUnitPlatform()
         }
     }
-    
+
+    //TODO add quarkus tests to project
+    // TODO example tests with deploying library into projects as well
     sourceSets {
         val jvmMain by getting{
             dependencies {
