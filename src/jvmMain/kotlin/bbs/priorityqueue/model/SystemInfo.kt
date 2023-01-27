@@ -17,7 +17,7 @@ import java.time.ZoneOffset
 @DynamoDbBean
 @JsonInclude(JsonInclude.Include.NON_NULL)
 //@DynamoDBDocument
-class SystemInfo { // end SystemInfo
+class SystemInfo {
     /**
      * Default C-tor
      */
@@ -68,7 +68,7 @@ class SystemInfo { // end SystemInfo
     /**
      * keeps track of the number of times an element was touched
      */
-    @JsonProperty("touched")
+    @JsonProperty("accessed")
     var accessed = 0
 
 }

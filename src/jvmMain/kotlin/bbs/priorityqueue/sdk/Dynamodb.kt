@@ -7,25 +7,25 @@ import bbs.priorityqueue.model.ReturnResult
 import bbs.priorityqueue.model.ReturnStatusEnum
 import bbs.priorityqueue.model.SystemInfo
 import bbs.priorityqueue.utils.Utils
-
 import software.amazon.awssdk.auth.credentials.ProfileCredentialsProvider
 import software.amazon.awssdk.enhanced.dynamodb.DynamoDbEnhancedClient
 import software.amazon.awssdk.enhanced.dynamodb.DynamoDbTable
+import software.amazon.awssdk.enhanced.dynamodb.EnhancedType
 import software.amazon.awssdk.enhanced.dynamodb.Key
 import software.amazon.awssdk.enhanced.dynamodb.TableSchema
+import software.amazon.awssdk.enhanced.dynamodb.mapper.StaticAttribute
+import software.amazon.awssdk.enhanced.dynamodb.mapper.StaticAttributeTags.*
+import software.amazon.awssdk.enhanced.dynamodb.mapper.StaticTableSchema
 import software.amazon.awssdk.enhanced.dynamodb.model.GetItemEnhancedRequest
-
 import software.amazon.awssdk.regions.Region
 import software.amazon.awssdk.services.dynamodb.DynamoDbClient
-import software.amazon.awssdk.services.dynamodb.model.AttributeValue
-import software.amazon.awssdk.services.dynamodb.model.QueryRequest
-import software.amazon.awssdk.services.dynamodb.model.ReturnValue
-import software.amazon.awssdk.services.dynamodb.model.UpdateItemRequest
-import software.amazon.awssdk.services.dynamodb.model.UpdateItemResponse
+import software.amazon.awssdk.services.dynamodb.model.*
 import java.net.URI
 import java.time.OffsetDateTime
 import java.time.ZoneOffset
 import java.util.*
+import java.util.function.Consumer
+import java.util.function.Supplier
 
 
 class Dynamodb(builder: Builder) : Database {
@@ -58,7 +58,46 @@ class Dynamodb(builder: Builder) : Database {
             .dynamoDbClient(dynamoDB)
             .build()
 
-        dbMapper = dynamoDBEnhanced?.table(tableName, TableSchema.fromBean(PriorityQueueElement::class.java))
+
+        //Tables must be static to support graalvm
+        val systemInfoSchema = StaticTableSchema
+            .builder(SystemInfo::class.java)
+            .newItemSupplier(::SystemInfo)
+            .addAttribute(String::class.java){
+                it.name("id").getter(SystemInfo::id::get).setter(SystemInfo::id::set)
+            }
+            .addAttribute(String::class.java){
+                it.name("lastUpdatedTimestamp").getter(SystemInfo::lastUpdatedTimestamp::get).setter(SystemInfo::lastUpdatedTimestamp::set)
+            }
+            .addAttribute(String::class.java){
+                it.name("creationTimestamp").getter(SystemInfo::creationTimestamp::get).setter(SystemInfo::creationTimestamp::set)
+            }
+            .addAttribute(Int::class.java){
+                it.name("accessed").getter(SystemInfo::accessed::get).setter(SystemInfo::accessed::set)
+            }
+            .build()
+
+        val tableSchema = StaticTableSchema
+            .builder(PriorityQueueElement::class.java)
+            .newItemSupplier(::PriorityQueueElement)
+            .addAttribute(String::class.java){
+                it.name("id").getter(PriorityQueueElement::id::get).setter(PriorityQueueElement::id::set)
+                    .tags(primaryPartitionKey())
+            }
+            .addAttribute(String::class.java){
+                it.name("schedule").getter(PriorityQueueElement::schedule::get).setter(PriorityQueueElement::schedule::set)
+                    .tags(secondarySortKey("scheduled-index"))
+            }
+            .addAttribute(String::class.java){
+                it.name("data").getter(PriorityQueueElement::data::get).setter(PriorityQueueElement::data::set)
+            }
+            .addAttribute(EnhancedType.documentOf(SystemInfo::class.java, systemInfoSchema))
+            {
+                it.name("system_info").getter(PriorityQueueElement::systemInfo::get).setter(PriorityQueueElement::systemInfo::set)
+            }
+            .build()
+
+        dbMapper = dynamoDBEnhanced?.table(tableName, tableSchema)
         return this
     }
 

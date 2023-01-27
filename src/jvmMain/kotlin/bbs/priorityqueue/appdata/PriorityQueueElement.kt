@@ -36,19 +36,9 @@ class PriorityQueueElement{
     /**
      * item to store GSI range key values
      */
-
+    @get:DynamoDbAttribute("schedule")
     @JsonProperty("schedule")
-    private var schedule: String? = null
-
-    @DynamoDbAttribute("schedule")
-    fun getSchedule(): String?{
-        return this.schedule
-    }
-
-    fun setSchedule(date: String?) {
-        this.schedule = date
-    }
-
+    var schedule: String? = null
 
     @get:DynamoDbAttribute("system_info")
     @JsonProperty("system_info")
@@ -73,10 +63,7 @@ class PriorityQueueElement{
         }
     }
 
-    init {
-        id = null
-        schedule = null
-        data = null
+    override fun toString(): String {
+        return "PriorityQueueElement(id=$id, schedule=$schedule, systemInfo=$systemInfo, data=$data)"
     }
-
 }

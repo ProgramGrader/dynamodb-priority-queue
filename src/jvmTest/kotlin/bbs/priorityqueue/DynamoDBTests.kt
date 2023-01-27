@@ -49,12 +49,12 @@ class DynamoDBTests : AnnotationSpec() {
         client.put(assignment3)
     }
 
-    @After
-    fun deleteItems(){
-        client!!.delete(id1)
-        client.delete(id2)
-        client.delete(id3)
-    }
+//    @After
+//    fun deleteItems(){
+//        client!!.delete(id1)
+//        client.delete(id2)
+//        client.delete(id3)
+//    }
 
     @Test
     fun `putting, getting and deleting from DynamoDB`(){
@@ -99,9 +99,9 @@ class DynamoDBTests : AnnotationSpec() {
 
         val dequeuedDatabaseItem = client.dequeue(3)
 
-        val earliestDate = DateTime.parse((dequeuedDatabaseItem[0]).getSchedule())
-        val midDate = DateTime.parse((dequeuedDatabaseItem[1]).getSchedule())
-        val latestDate = DateTime.parse((dequeuedDatabaseItem[2]).getSchedule())
+        val earliestDate = DateTime.parse((dequeuedDatabaseItem[0]).schedule)
+        val midDate = DateTime.parse((dequeuedDatabaseItem[1]).schedule)
+        val latestDate = DateTime.parse((dequeuedDatabaseItem[2]).schedule)
 
         (earliestDate < midDate).shouldBeTrue()
         (earliestDate < latestDate).shouldBeTrue()
