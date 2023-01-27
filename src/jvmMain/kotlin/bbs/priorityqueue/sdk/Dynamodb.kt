@@ -7,13 +7,11 @@ import bbs.priorityqueue.model.ReturnResult
 import bbs.priorityqueue.model.ReturnStatusEnum
 import bbs.priorityqueue.model.SystemInfo
 import bbs.priorityqueue.utils.Utils
-import software.amazon.awssdk.auth.credentials.ProfileCredentialsProvider
 import software.amazon.awssdk.enhanced.dynamodb.DynamoDbEnhancedClient
 import software.amazon.awssdk.enhanced.dynamodb.DynamoDbTable
 import software.amazon.awssdk.enhanced.dynamodb.EnhancedType
 import software.amazon.awssdk.enhanced.dynamodb.Key
 import software.amazon.awssdk.enhanced.dynamodb.TableSchema
-import software.amazon.awssdk.enhanced.dynamodb.mapper.StaticAttribute
 import software.amazon.awssdk.enhanced.dynamodb.mapper.StaticAttributeTags.*
 import software.amazon.awssdk.enhanced.dynamodb.mapper.StaticTableSchema
 import software.amazon.awssdk.enhanced.dynamodb.model.GetItemEnhancedRequest
@@ -24,12 +22,10 @@ import java.net.URI
 import java.time.OffsetDateTime
 import java.time.ZoneOffset
 import java.util.*
-import java.util.function.Consumer
-import java.util.function.Supplier
 
 
 class Dynamodb(builder: Builder) : Database {
-    private var credentialProvider: ProfileCredentialsProvider?
+    //private var credentialProvider: ProfileCredentialsProvider?
 
     var tableName: String?
     var awsRegion: Region?
@@ -42,14 +38,13 @@ class Dynamodb(builder: Builder) : Database {
         tableName = builder.tableName
         awsRegion = builder.awsRegion
         awsCredentialsProfileName = builder.awsCredentialsProfileName
-        credentialProvider = ProfileCredentialsProvider.create(awsCredentialsProfileName)
+        //credentialProvider = ProfileCredentialsProvider.create(awsCredentialsProfileName)
     }
 
     override fun initialize() : Database {
         Locale.setDefault(Locale.ENGLISH)
 
         dynamoDB =DynamoDbClient.builder()
-            .credentialsProvider(credentialProvider)
             .region(awsRegion)
             .httpClient(software.amazon.awssdk.http.urlconnection.UrlConnectionHttpClient.builder().build())
             .build()
@@ -108,7 +103,7 @@ class Dynamodb(builder: Builder) : Database {
 
         // initializes instance at endpoint.
         dynamoDB = DynamoDbClient.builder()
-            .credentialsProvider(credentialProvider)
+            //.credentialsProvider(credentialProvider)
             .region(awsRegion)
             .endpointOverride(endpoint)
             .build()
@@ -583,16 +578,16 @@ class Dynamodb(builder: Builder) : Database {
             return this
         }
 
-        /**
-         * Specify local credential profile
-         *
-         * @param profile This is the name of the local AWS Credential profile
-         * @return Builder
-         */
-        fun withCredentialsProfileName(profile: String?): Builder {
-            awsCredentialsProfileName = profile
-            return this
-        }
+//        /** using default credential chain provided by v2 of the dynamodb sdk no longer need this method
+//         * Specify local credential profile
+//         *
+//         * @param profile This is the name of the local AWS Credential profile
+//         * @return Builder
+//         */
+//        fun withCredentialsProfileName(profile: String?): Builder {
+//            awsCredentialsProfileName = profile
+//            return this
+//        }
 
         fun withTableName(tableName: String?): Builder {
             this.tableName = tableName
