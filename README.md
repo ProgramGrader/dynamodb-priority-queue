@@ -3,9 +3,9 @@
 A sdk that allows you to prioritize items based off of date in descending order. 
 (Dynamodb table must match specifics in test/terraform/main.tf)
 
-## WARING: GrailVM currently not supported
-
-This packages uses aws java sdk v2 which instanciates java.util.SecureRandom at build time.
+## Warning for Graalvm 
+For this library to work correctly you must pass --initialize-at-run-time=org.apache.http.impl.auth.NTLMEngineImpl as a argument
+to your image build command
 
 ## Quick start
 
