@@ -104,6 +104,7 @@ class Dynamodb(builder: Builder) : Database {
         // initializes instance at endpoint.
         dynamoDB = DynamoDbClient.builder()
             //.credentialsProvider(credentialProvider)
+            .httpClient(software.amazon.awssdk.http.urlconnection.UrlConnectionHttpClient.builder().build())
             .region(awsRegion)
             .endpointOverride(endpoint)
             .build()

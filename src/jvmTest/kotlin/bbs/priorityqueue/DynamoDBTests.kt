@@ -14,6 +14,8 @@ import org.joda.time.LocalDate
 import software.amazon.awssdk.regions.Region
 import java.net.URI
 
+// TODO test if things are triggered correctly regardless of different time zone definitions
+
 class DynamoDBTests : AnnotationSpec() {
 
     private val endpoint = URI.create("http://localhost:4566/")
